@@ -50,6 +50,17 @@ This is probably the killer feature of autoresearch having an (almost) tireless 
 
 ## What could be improved
 
+- The results figure above shows single runs. Rerunning the setup 5 times reveals the following mean/std:
+
+| Config | Runs | Mean | Std | Min | Max | Selected   |
+|---|---|---|---|---|---|------------|
+| 1-min, auto-generated | 5 | 91.83% | 0.155% | 91.63% | 91.98% | 92.10%     |
+| 5-min, auto-generated | 5 | 95.02% | 0.275% | 94.64% | 95.37% | **95.39%** |
+| 1-min, hand-crafted | 5 | 90.75% | 0.241% | 90.38% | 91.00% | 91.36%     |
+| 5-min, hand-crafted | 5 | 93.42% | 0.218% | 93.13% | 93.68% | 92.28%     |
+
+So a proper evaluation before accepting the new solution would average over multiple seeds from the start rather than report a single best run.
+
 - The feedback for keep/discard model is only the test accuracy, this is definitely not enough. The typical loop for thinking what to test is next is by looking at complete plot, seeing over/under fitting or other issues.
 - The experiment is biased to High LR which is normal for such small training budget but it might not be the best when giving full compute access. A fix could be to have a secondary validation on a 10/20 min run of the setup found.
 - LOOOONNGGG running time. I stopped after the model said to stop, but it is fascinating to ponder what would those model do after 200/500/1000 run. Would they still find interesting thing or be stuck like they did when they played Pokemon and specific training or harness were necessary to fix that. 
