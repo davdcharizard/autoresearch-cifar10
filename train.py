@@ -16,7 +16,7 @@ from prepare import DATASET_DIR, NUM_WORKERS, TIME_BUDGET_S, Eval
 # ---------------------------------------------------------------------------
 
 NUM_BLOCKS = 3  # ResNet-20 = 6*3+2
-WIDTH_MULT = 2  # channel widening factor over the He-2015 ResNet-CIFAR widths {16, 32, 64}; baseline is implicitly 1
+WIDTH_MULT = 4  # channel widening factor over the He-2015 ResNet-CIFAR widths {16, 32, 64}; baseline is implicitly 1
 NUM_CLASSES = 10
 BATCH_SIZE = 128
 LR = 0.1
