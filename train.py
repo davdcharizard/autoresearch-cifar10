@@ -16,6 +16,7 @@ from prepare import DATASET_DIR, NUM_WORKERS, TIME_BUDGET_S, Eval
 # ---------------------------------------------------------------------------
 
 NUM_BLOCKS = 3  # ResNet-20 = 6*3+2
+WIDTH_MULT = 2  # channel widening factor over the He-2015 ResNet-CIFAR widths {16, 32, 64}; baseline is implicitly 1
 NUM_CLASSES = 10
 BATCH_SIZE = 128
 LR = 0.1
@@ -60,12 +61,18 @@ class BasicBlock(nn.Module):
 class ResNet(nn.Module):
     def __init__(self, num_blocks, num_classes=10):
         super().__init__()
-        self.conv1 = nn.Conv2d(3, 16, 3, stride=1, padding=1, bias=False)
-        self.bn1 = nn.BatchNorm2d(16)
-        self.layer1 = self._make_layer(16, 16, num_blocks, stride=1)
-        self.layer2 = self._make_layer(16, 32, num_blocks, stride=2)
-        self.layer3 = self._make_layer(32, 64, num_blocks, stride=2)
-        self.fc = nn.Linear(64, num_classes)
+        self.conv1 = nn.Conv2d(3, 16 * WIDTH_MULT, 3, stride=1, padding=1, bias=False)
+        self.bn1 = nn.BatchNorm2d(16 * WIDTH_MULT)
+        self.layer1 = self._make_layer(
+            16 * WIDTH_MULT, 16 * WIDTH_MULT, num_blocks, stride=1
+        )
+        self.layer2 = self._make_layer(
+            16 * WIDTH_MULT, 32 * WIDTH_MULT, num_blocks, stride=2
+        )
+        self.layer3 = self._make_layer(
+            32 * WIDTH_MULT, 64 * WIDTH_MULT, num_blocks, stride=2
+        )
+        self.fc = nn.Linear(64 * WIDTH_MULT, num_classes)
         self.apply(self._weights_init)
 
     @staticmethod
@@ -142,8 +149,31 @@ def main():
     optimizer = optim.SGD(
         model.parameters(), lr=LR, momentum=MOMENTUM, weight_decay=WEIGHT_DECAY
     )
-    scheduler = optim.lr_scheduler.MultiStepLR(
-        optimizer, milestones=[32000, 48000], gamma=0.1
+    # Wall-clock-fractional reformulation of the He-2015 step-decay schedule. The original
+    # MultiStepLR(milestones=[32000, 48000], gamma=0.1) over the 64K-iteration budget is the
+    # cascade LR=0.1 -> 0.01 -> 0.001 at the iteration-budget fractions 0.5 and 0.75. Under
+    # the project's wall-clock-fixed regime (TIME_BUDGET_S from prepare.py, not an iteration
+    # budget), the canonical translation is the same fractional shape keyed on the wall-clock
+    # progress p = total_training_time / TIME_BUDGET_S. The closure-cell _lr_progress is the
+    # mutable state the inner training loop updates each iteration; the lambda below reads it
+    # at each scheduler.step() call. The PyTorch LambdaLR API passes the scheduler's step
+    # index as the lambda's argument, which is unused here. The returned multiplier scales
+    # the optimizer's initial LR (the constant LR at the top of the file), so the cascade
+    # 1.0 / 0.1 / 0.01 produces absolute LRs 0.1 / 0.01 / 0.001 -- bit-identical to the
+    # He-2015 schedule shape. Rationale and prior-loop lesson cite: .autoresearch/brainstorm
+    # /brainstorm-001.md and .autoresearch/plans/plan-001.md.
+    _lr_progress = [0.0]
+
+    def _wall_clock_fractional_step_decay(_step_idx):
+        p = _lr_progress[0]
+        if p < 0.5:
+            return 1.0
+        if p < 0.75:
+            return 0.1
+        return 0.01
+
+    scheduler = optim.lr_scheduler.LambdaLR(
+        optimizer, lr_lambda=_wall_clock_fractional_step_decay
     )
     print(f"Time budget: {TIME_BUDGET_S}s")
     print(f"Batches per epoch: {len(train_loader)}")
@@ -178,6 +208,9 @@ def main():
             torch.cuda.synchronize()
             dt = time.time() - t0
             total_training_time += dt
+            _lr_progress[0] = (
+                total_training_time / TIME_BUDGET_S
+            )  # drives the wall-clock-fractional LR schedule
             step += 1
 
             train_loss_f = loss.item()
