@@ -101,6 +101,25 @@ class ResNet(nn.Module):
         return self.fc(out)
 
 
+@torch.inference_mode()
+def tta_evaluate(model, device, loader):
+    model.eval()
+    total_loss = 0.0
+    correct = 0
+    total = 0
+    for inputs, targets in loader:
+        inputs = inputs.to(device, non_blocking=True, memory_format=torch.channels_last)
+        targets = targets.to(device, non_blocking=True)
+        with torch.amp.autocast("cuda", dtype=torch.float16):
+            logits_orig = model(inputs)
+            logits_flip = model(torch.flip(inputs, dims=[3]))
+        logits = (logits_orig + logits_flip) * 0.5
+        total_loss += F.cross_entropy(logits, targets, reduction="sum").item()
+        correct += logits.argmax(1).eq(targets).sum().item()
+        total += targets.size(0)
+    return total_loss / total, 100.0 * correct / total
+
+
 # ---------------------------------------------------------------------------
 # Training & evaluation
 # ---------------------------------------------------------------------------
@@ -253,7 +272,7 @@ def main():
             if total_training_time >= TIME_BUDGET_S or step >= MAX_STEPS:
                 break
 
-        test_loss, test_acc = evaluator.evaluate(model, device)
+        test_loss, test_acc = tta_evaluate(model, device, evaluator.loader)
 
         if test_acc > best_acc:
             best_acc = test_acc
