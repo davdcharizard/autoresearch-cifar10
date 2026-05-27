@@ -18,8 +18,8 @@ from prepare import DATASET_DIR, NUM_WORKERS, TIME_BUDGET_S, Eval
 NUM_BLOCKS = 3  # ResNet-20 = 6*3+2
 WIDTH_MULT = 4  # channel widening factor over the He-2015 ResNet-CIFAR widths {16, 32, 64}; baseline is implicitly 1
 NUM_CLASSES = 10
-BATCH_SIZE = 128
-LR = 0.1
+BATCH_SIZE = 256
+LR = 0.2
 MOMENTUM = 0.9
 WEIGHT_DECAY = 5e-4
 MAX_STEPS = 64000
@@ -168,14 +168,22 @@ def main():
     # He-2015 schedule shape. Rationale and prior-loop lesson cite: .autoresearch/brainstorm
     # /brainstorm-001.md and .autoresearch/plans/plan-001.md.
     _lr_progress = [0.0]
+    _epoch_count = [0]
+    WARMUP_EPOCHS = 5
 
     def _wall_clock_fractional_step_decay(_step_idx):
         p = _lr_progress[0]
         if p < 0.5:
-            return 1.0
-        if p < 0.75:
-            return 0.1
-        return 0.01
+            mult = 1.0
+        elif p < 0.75:
+            mult = 0.1
+        else:
+            mult = 0.01
+        e = _epoch_count[0]
+        if e < WARMUP_EPOCHS:
+            warmup = (e + 1) / WARMUP_EPOCHS
+            mult *= warmup
+        return mult
 
     scheduler = optim.lr_scheduler.LambdaLR(
         optimizer, lr_lambda=_wall_clock_fractional_step_decay
@@ -196,6 +204,7 @@ def main():
 
     while total_training_time < TIME_BUDGET_S and step < MAX_STEPS:
         epoch += 1
+        _epoch_count[0] = epoch - 1
         model.train()
 
         for inputs, targets in train_loader:
