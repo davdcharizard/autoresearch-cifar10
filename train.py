@@ -173,40 +173,21 @@ def main():
         model.parameters(), lr=LR, momentum=MOMENTUM, weight_decay=WEIGHT_DECAY
     )
     scaler = torch.amp.GradScaler("cuda")
-    # Wall-clock-fractional reformulation of the He-2015 step-decay schedule. The original
-    # MultiStepLR(milestones=[32000, 48000], gamma=0.1) over the 64K-iteration budget is the
-    # cascade LR=0.1 -> 0.01 -> 0.001 at the iteration-budget fractions 0.5 and 0.75. Under
-    # the project's wall-clock-fixed regime (TIME_BUDGET_S from prepare.py, not an iteration
-    # budget), the canonical translation is the same fractional shape keyed on the wall-clock
-    # progress p = total_training_time / TIME_BUDGET_S. The closure-cell _lr_progress is the
-    # mutable state the inner training loop updates each iteration; the lambda below reads it
-    # at each scheduler.step() call. The PyTorch LambdaLR API passes the scheduler's step
-    # index as the lambda's argument, which is unused here. The returned multiplier scales
-    # the optimizer's initial LR (the constant LR at the top of the file), so the cascade
-    # 1.0 / 0.1 / 0.01 produces absolute LRs 0.1 / 0.01 / 0.001 -- bit-identical to the
-    # He-2015 schedule shape. Rationale and prior-loop lesson cite: .autoresearch/brainstorm
-    # /brainstorm-001.md and .autoresearch/plans/plan-001.md.
-    _lr_progress = [0.0]
-    _epoch_count = [0]
+    import math
+
+    ESTIMATED_EPOCHS = 100
     WARMUP_EPOCHS = 5
+    steps_per_epoch = len(train_loader)
+    total_steps = ESTIMATED_EPOCHS * steps_per_epoch
+    warmup_steps = WARMUP_EPOCHS * steps_per_epoch
 
-    def _wall_clock_fractional_step_decay(_step_idx):
-        p = _lr_progress[0]
-        if p < 0.5:
-            mult = 1.0
-        elif p < 0.75:
-            mult = 0.1
-        else:
-            mult = 0.01
-        e = _epoch_count[0]
-        if e < WARMUP_EPOCHS:
-            warmup = (e + 1) / WARMUP_EPOCHS
-            mult *= warmup
-        return mult
+    def _warmup_cosine(step_idx):
+        if step_idx < warmup_steps:
+            return (step_idx + 1) / warmup_steps
+        progress = (step_idx - warmup_steps) / max(1, total_steps - warmup_steps)
+        return 0.5 * (1.0 + math.cos(math.pi * progress))
 
-    scheduler = optim.lr_scheduler.LambdaLR(
-        optimizer, lr_lambda=_wall_clock_fractional_step_decay
-    )
+    scheduler = optim.lr_scheduler.LambdaLR(optimizer, lr_lambda=_warmup_cosine)
     print(f"Time budget: {TIME_BUDGET_S}s")
     print(f"Batches per epoch: {len(train_loader)}")
 
@@ -223,7 +204,6 @@ def main():
 
     while total_training_time < TIME_BUDGET_S and step < MAX_STEPS:
         epoch += 1
-        _epoch_count[0] = epoch - 1
         model.train()
 
         for inputs, targets in train_loader:
@@ -245,9 +225,6 @@ def main():
             torch.cuda.synchronize()
             dt = time.time() - t0
             total_training_time += dt
-            _lr_progress[0] = (
-                total_training_time / TIME_BUDGET_S
-            )  # drives the wall-clock-fractional LR schedule
             step += 1
 
             train_loss_f = loss.item()
