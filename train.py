@@ -144,13 +144,16 @@ def main():
         drop_last=True,
     )
 
-    model = ResNet(NUM_BLOCKS, NUM_CLASSES).to(device)
+    model = ResNet(NUM_BLOCKS, NUM_CLASSES).to(
+        device, memory_format=torch.channels_last
+    )
     num_params = sum(p.numel() for p in model.parameters())
     print(f"ResNet-{6 * NUM_BLOCKS + 2} | params: {num_params:,}")
 
     optimizer = optim.SGD(
         model.parameters(), lr=LR, momentum=MOMENTUM, weight_decay=WEIGHT_DECAY
     )
+    scaler = torch.amp.GradScaler("cuda")
     # Wall-clock-fractional reformulation of the He-2015 step-decay schedule. The original
     # MultiStepLR(milestones=[32000, 48000], gamma=0.1) over the 64K-iteration budget is the
     # cascade LR=0.1 -> 0.01 -> 0.001 at the iteration-budget fractions 0.5 and 0.75. Under
@@ -197,14 +200,18 @@ def main():
 
         for inputs, targets in train_loader:
             t0 = time.time()
-            inputs = inputs.to(device, non_blocking=True)
+            inputs = inputs.to(
+                device, non_blocking=True, memory_format=torch.channels_last
+            )
             targets = targets.to(device, non_blocking=True)
 
             optimizer.zero_grad()
-            outputs = model(inputs)
-            loss = F.cross_entropy(outputs, targets)
-            loss.backward()
-            optimizer.step()
+            with torch.amp.autocast("cuda", dtype=torch.float16):
+                outputs = model(inputs)
+                loss = F.cross_entropy(outputs, targets)
+            scaler.scale(loss).backward()
+            scaler.step(optimizer)
+            scaler.update()
             scheduler.step()
 
             torch.cuda.synchronize()
