@@ -217,7 +217,7 @@ def main():
             optimizer.zero_grad()
             with torch.amp.autocast("cuda", dtype=torch.float16):
                 outputs = model(inputs)
-                loss = F.cross_entropy(outputs, targets)
+                loss = F.cross_entropy(outputs, targets, label_smoothing=0.2)
             scaler.scale(loss).backward()
             scaler.step(optimizer)
             scaler.update()
