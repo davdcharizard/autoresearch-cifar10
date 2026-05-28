@@ -24,7 +24,8 @@ MOMENTUM = 0.9
 WEIGHT_DECAY = 1e-4
 LABEL_SMOOTHING = 0.1
 WARMUP_EPOCHS = 5
-COSINE_T_MAX = 90
+COSINE_T_MAX = 55
+WIDTH_MULT = 2
 CUTOUT_SIZE = 16
 evaluator = Eval()
 
@@ -67,30 +68,31 @@ class BasicBlock(nn.Module):
         )
         self.bn2 = nn.BatchNorm2d(out_channels)
 
-        self.stride = stride
-        self.need_pad = stride != 1 or in_channels != out_channels
-        self.pad_channels = out_channels - in_channels if self.need_pad else 0
+        if stride != 1 or in_channels != out_channels:
+            self.shortcut = nn.Sequential(
+                nn.Conv2d(in_channels, out_channels, 1, stride=stride, bias=False),
+                nn.BatchNorm2d(out_channels),
+            )
+        else:
+            self.shortcut = nn.Identity()
 
     def forward(self, x):
         out = F.relu(self.bn1(self.conv1(x)))
         out = self.bn2(self.conv2(out))
-        shortcut = x
-        if self.need_pad:
-            shortcut = shortcut[:, :, :: self.stride, :: self.stride]
-            shortcut = F.pad(shortcut, (0, 0, 0, 0, 0, self.pad_channels))
-        out += shortcut
+        out += self.shortcut(x)
         return F.relu(out)
 
 
 class ResNet(nn.Module):
-    def __init__(self, num_blocks, num_classes=10):
+    def __init__(self, num_blocks, num_classes=10, width_mult=1):
         super().__init__()
-        self.conv1 = nn.Conv2d(3, 16, 3, stride=1, padding=1, bias=False)
-        self.bn1 = nn.BatchNorm2d(16)
-        self.layer1 = self._make_layer(16, 16, num_blocks, stride=1)
-        self.layer2 = self._make_layer(16, 32, num_blocks, stride=2)
-        self.layer3 = self._make_layer(32, 64, num_blocks, stride=2)
-        self.fc = nn.Linear(64, num_classes)
+        w = [16 * width_mult, 32 * width_mult, 64 * width_mult]
+        self.conv1 = nn.Conv2d(3, w[0], 3, stride=1, padding=1, bias=False)
+        self.bn1 = nn.BatchNorm2d(w[0])
+        self.layer1 = self._make_layer(w[0], w[0], num_blocks, stride=1)
+        self.layer2 = self._make_layer(w[0], w[1], num_blocks, stride=2)
+        self.layer3 = self._make_layer(w[1], w[2], num_blocks, stride=2)
+        self.fc = nn.Linear(w[2], num_classes)
         self.apply(self._weights_init)
 
     @staticmethod
@@ -161,13 +163,24 @@ def main():
         drop_last=True,
     )
 
-    model = ResNet(NUM_BLOCKS, NUM_CLASSES).to(device)
+    model = ResNet(NUM_BLOCKS, NUM_CLASSES, width_mult=WIDTH_MULT).to(device)
     num_params = sum(p.numel() for p in model.parameters())
-    print(f"ResNet-{6 * NUM_BLOCKS + 2} | params: {num_params:,}")
+    print(f"ResNet-{6 * NUM_BLOCKS + 2} (w={WIDTH_MULT}) | params: {num_params:,}")
+
+    model = torch.compile(model)
+    with torch.amp.autocast("cuda"):
+        dummy = torch.randn(2, 3, 32, 32, device=device)
+        model(dummy)
+    print("torch.compile warmup done")
 
     optimizer = optim.SGD(
-        model.parameters(), lr=LR, momentum=MOMENTUM, weight_decay=WEIGHT_DECAY
+        model.parameters(),
+        lr=LR,
+        momentum=MOMENTUM,
+        weight_decay=WEIGHT_DECAY,
+        nesterov=True,
     )
+    scaler = torch.amp.GradScaler()
     warmup_scheduler = optim.lr_scheduler.LinearLR(
         optimizer, start_factor=0.1, total_iters=WARMUP_EPOCHS
     )
@@ -204,10 +217,12 @@ def main():
             targets = targets.to(device, non_blocking=True)
 
             optimizer.zero_grad()
-            outputs = model(inputs)
-            loss = criterion(outputs, targets)
-            loss.backward()
-            optimizer.step()
+            with torch.amp.autocast("cuda"):
+                outputs = model(inputs)
+                loss = criterion(outputs, targets)
+            scaler.scale(loss).backward()
+            scaler.step(optimizer)
+            scaler.update()
 
             torch.cuda.synchronize()
             dt = time.time() - t0
