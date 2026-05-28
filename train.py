@@ -24,31 +24,30 @@ MOMENTUM = 0.9
 WEIGHT_DECAY = 1e-4
 LABEL_SMOOTHING = 0.1
 WARMUP_EPOCHS = 5
-COSINE_T_MAX = 55
-WIDTH_MULT = 2
-CUTOUT_SIZE = 16
+COSINE_T_MAX = 57
+WIDTH_MULT = 3
+CUTMIX_ALPHA = 1.0
+CUTMIX_PROB = 0.5
 evaluator = Eval()
 
 
-# ---------------------------------------------------------------------------
-# CutOut augmentation (DeVries & Taylor 2017)
-# ---------------------------------------------------------------------------
-
-
-class CutOut:
-    def __init__(self, size):
-        self.size = size
-
-    def __call__(self, img):
-        h, w = img.shape[1], img.shape[2]
-        y = np.random.randint(h)
-        x = np.random.randint(w)
-        y1 = max(0, y - self.size // 2)
-        y2 = min(h, y + self.size // 2)
-        x1 = max(0, x - self.size // 2)
-        x2 = min(w, x + self.size // 2)
-        img[:, y1:y2, x1:x2] = 0.0
-        return img
+def cutmix_batch(inputs, targets, alpha=1.0):
+    lam = np.random.beta(alpha, alpha)
+    batch_size = inputs.size(0)
+    index = torch.randperm(batch_size, device=inputs.device)
+    h, w = inputs.shape[2], inputs.shape[3]
+    cut_rat = np.sqrt(1.0 - lam)
+    cut_h = int(h * cut_rat)
+    cut_w = int(w * cut_rat)
+    cy = np.random.randint(h)
+    cx = np.random.randint(w)
+    y1 = max(0, cy - cut_h // 2)
+    y2 = min(h, cy + cut_h // 2)
+    x1 = max(0, cx - cut_w // 2)
+    x2 = min(w, cx + cut_w // 2)
+    inputs[:, :, y1:y2, x1:x2] = inputs[index, :, y1:y2, x1:x2]
+    lam = 1.0 - (y2 - y1) * (x2 - x1) / (h * w)
+    return inputs, targets, targets[index], lam
 
 
 # ---------------------------------------------------------------------------
@@ -147,7 +146,6 @@ def main():
             transforms.RandomHorizontalFlip(),
             transforms.ToTensor(),
             transforms.Normalize(mean, std),
-            CutOut(CUTOUT_SIZE),
         ]
     )
 
@@ -216,10 +214,21 @@ def main():
             inputs = inputs.to(device, non_blocking=True)
             targets = targets.to(device, non_blocking=True)
 
+            use_cutmix = np.random.rand() < CUTMIX_PROB
+            if use_cutmix:
+                inputs, targets_a, targets_b, lam = cutmix_batch(
+                    inputs, targets, CUTMIX_ALPHA
+                )
+
             optimizer.zero_grad()
             with torch.amp.autocast("cuda"):
                 outputs = model(inputs)
-                loss = criterion(outputs, targets)
+                if use_cutmix:
+                    loss = lam * criterion(outputs, targets_a) + (
+                        1.0 - lam
+                    ) * criterion(outputs, targets_b)
+                else:
+                    loss = criterion(outputs, targets)
             scaler.scale(loss).backward()
             scaler.step(optimizer)
             scaler.update()
