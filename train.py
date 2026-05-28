@@ -1,3 +1,4 @@
+import copy
 import gc
 import time
 
@@ -21,7 +22,8 @@ NUM_CLASSES = 10
 BATCH_SIZE = 128
 LR = 0.1
 MOMENTUM = 0.9
-WEIGHT_DECAY = 1e-4
+WEIGHT_DECAY = 5e-4
+EMA_DECAY = 0.999
 LABEL_SMOOTHING = 0.1
 WARMUP_EPOCHS = 5
 COSINE_T_MAX = 49
@@ -165,6 +167,9 @@ def main():
     num_params = sum(p.numel() for p in model.parameters())
     print(f"ResNet-{6 * NUM_BLOCKS + 2} (w={WIDTH_MULT}) | params: {num_params:,}")
 
+    ema_model = copy.deepcopy(model)
+    ema_model.eval()
+
     model = torch.compile(model)
     with torch.amp.autocast("cuda"):
         dummy = torch.randn(2, 3, 32, 32, device=device)
@@ -233,6 +238,12 @@ def main():
             scaler.step(optimizer)
             scaler.update()
 
+            with torch.no_grad():
+                for p_ema, p in zip(ema_model.parameters(), model.parameters()):
+                    p_ema.data.mul_(EMA_DECAY).add_(p.data, alpha=1.0 - EMA_DECAY)
+                for b_ema, b in zip(ema_model.buffers(), model.buffers()):
+                    b_ema.data.copy_(b.data)
+
             torch.cuda.synchronize()
             dt = time.time() - t0
             total_training_time += dt
@@ -261,7 +272,7 @@ def main():
                 break
 
         scheduler.step()
-        test_loss, test_acc = evaluator.evaluate(model, device)
+        test_loss, test_acc = evaluator.evaluate(ema_model, device)
 
         if test_acc > best_acc:
             best_acc = test_acc
