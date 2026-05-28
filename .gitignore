@@ -215,3 +215,5 @@ __marimo__/
 # Streamlit
 .streamlit/secrets.toml
 .autoresearch/
+.claude/hooks/protect-files.sh
+.codex/hooks/protect-files.sh
