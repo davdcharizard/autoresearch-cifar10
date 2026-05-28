@@ -1,6 +1,7 @@
 import gc
 import time
 
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.init as init
@@ -21,8 +22,32 @@ BATCH_SIZE = 128
 LR = 0.1
 MOMENTUM = 0.9
 WEIGHT_DECAY = 1e-4
-MAX_STEPS = 64000
+LABEL_SMOOTHING = 0.1
+WARMUP_EPOCHS = 5
+COSINE_T_MAX = 90
+CUTOUT_SIZE = 16
 evaluator = Eval()
+
+
+# ---------------------------------------------------------------------------
+# CutOut augmentation (DeVries & Taylor 2017)
+# ---------------------------------------------------------------------------
+
+
+class CutOut:
+    def __init__(self, size):
+        self.size = size
+
+    def __call__(self, img):
+        h, w = img.shape[1], img.shape[2]
+        y = np.random.randint(h)
+        x = np.random.randint(w)
+        y1 = max(0, y - self.size // 2)
+        y2 = min(h, y + self.size // 2)
+        x1 = max(0, x - self.size // 2)
+        x2 = min(w, x + self.size // 2)
+        img[:, y1:y2, x1:x2] = 0.0
+        return img
 
 
 # ---------------------------------------------------------------------------
@@ -120,6 +145,7 @@ def main():
             transforms.RandomHorizontalFlip(),
             transforms.ToTensor(),
             transforms.Normalize(mean, std),
+            CutOut(CUTOUT_SIZE),
         ]
     )
 
@@ -142,9 +168,18 @@ def main():
     optimizer = optim.SGD(
         model.parameters(), lr=LR, momentum=MOMENTUM, weight_decay=WEIGHT_DECAY
     )
-    scheduler = optim.lr_scheduler.MultiStepLR(
-        optimizer, milestones=[32000, 48000], gamma=0.1
+    warmup_scheduler = optim.lr_scheduler.LinearLR(
+        optimizer, start_factor=0.1, total_iters=WARMUP_EPOCHS
     )
+    cosine_scheduler = optim.lr_scheduler.CosineAnnealingLR(
+        optimizer, T_max=COSINE_T_MAX
+    )
+    scheduler = optim.lr_scheduler.SequentialLR(
+        optimizer,
+        schedulers=[warmup_scheduler, cosine_scheduler],
+        milestones=[WARMUP_EPOCHS],
+    )
+    criterion = nn.CrossEntropyLoss(label_smoothing=LABEL_SMOOTHING)
     print(f"Time budget: {TIME_BUDGET_S}s")
     print(f"Batches per epoch: {len(train_loader)}")
 
@@ -159,7 +194,7 @@ def main():
     step = 0
     best_acc = 0.0
 
-    while total_training_time < TIME_BUDGET_S and step < MAX_STEPS:
+    while total_training_time < TIME_BUDGET_S:
         epoch += 1
         model.train()
 
@@ -170,10 +205,9 @@ def main():
 
             optimizer.zero_grad()
             outputs = model(inputs)
-            loss = F.cross_entropy(outputs, targets)
+            loss = criterion(outputs, targets)
             loss.backward()
             optimizer.step()
-            scheduler.step()
 
             torch.cuda.synchronize()
             dt = time.time() - t0
@@ -199,9 +233,10 @@ def main():
                     flush=True,
                 )
 
-            if total_training_time >= TIME_BUDGET_S or step >= MAX_STEPS:
+            if total_training_time >= TIME_BUDGET_S:
                 break
 
+        scheduler.step()
         test_loss, test_acc = evaluator.evaluate(model, device)
 
         if test_acc > best_acc:
