@@ -142,7 +142,7 @@ def main():
     )  # Yes original paper only mention per-pixel mean and this is per band. See README
     train_tf = transforms.Compose(
         [
-            transforms.RandomCrop(32, padding=4),
+            transforms.RandomCrop(32, padding=4, padding_mode='reflect'),
             transforms.RandomHorizontalFlip(),
             transforms.TrivialAugmentWide(),
             transforms.ToTensor(),
@@ -170,7 +170,8 @@ def main():
     print(f"ResNet-{6 * NUM_BLOCKS + 2} | params: {num_params:,}")
 
     optimizer = optim.SGD(
-        model.parameters(), lr=LR, momentum=MOMENTUM, weight_decay=WEIGHT_DECAY
+        model.parameters(), lr=LR, momentum=MOMENTUM, weight_decay=WEIGHT_DECAY,
+        nesterov=True,
     )
     scaler = torch.amp.GradScaler("cuda")
     import math
