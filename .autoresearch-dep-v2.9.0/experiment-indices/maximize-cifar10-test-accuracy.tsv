@@ -1,0 +1,39 @@
+# metric: best_test_acc | unit: % | direction: higher | baseline: 96.56 | baseline_commit: 00abbc2
+# goal: goals/maximize-cifar10-test-accuracy.md
+exp_id	commit	metric	verdict	description	key_learning
+BASE	efeff46	91.72	improvement	Initial baseline	Baseline establishment
+000	efeff46	88.79	no-improvement	Training recipe modernization: cosine LR, Cutout, label smoothing, Nesterov	Cosine T_max must match actual epoch count; T_max=200 with 91 epochs keeps LR too high
+001	dc1538a	92.29	improvement	Width-2x ResNet-20 with wall-clock-fractional MultiStep LR	Doubling channel widths to 1.07M params gains +0.57pp; wall-clock-fractional schedule fires drops correctly at 50%/75% budget
+002	651d57c	92.92	improvement	TrivialAugmentWide + RandomErasing on width-2x baseline	Augmentation on width-2x adds +0.63pp; second LR drop contributes more with augmentation (+0.52pp vs EXP-001 +0.02pp)
+003	a3e19f8	93.33	improvement	Weight decay 5e-4 on width-2x augmented baseline	WD 5e-4 adds +0.41pp; second LR drop gains +1.8pp with stronger WD, confirming WD+augmentation synergy
+004	a3e19f8	93.28	no-improvement	Nesterov momentum + label smoothing 0.1	Nesterov+LS reduced epochs (65 vs 69) and peaked lower (93.28% vs 93.33%); the per-step overhead cost more than the gradient quality gain
+005	b934204	94.44	improvement	AMP FP16 + GradScaler + channels_last for throughput	AMP gives 1.54x epoch throughput (106 vs 69 epochs); FP16 unstable at LR=0.01 but extended LR=0.001 phase delivers +1.11pp
+006	b934204	94.17	no-improvement	Schedule optimization (0.35, 0.55) for AMP	Shifting LR drops earlier reduced high-LR exploration; 94.17% vs 94.44% baseline — the (0.5, 0.75) schedule is better despite FP16 instability at LR=0.01
+007	1c37a9f	94.82	improvement	Width-4x (WIDTH_MULT=4) with AMP	Width-4x with AMP reaches 94.82% in 83 epochs at 9ms/step; wider model converges better at LR=0.01 than width-2x
+008	1c37a9f	94.75	no-improvement	torch.compile with warmup pass (default mode)	torch.compile provides zero speedup on H20 for small ResNet+AMP — Inductor finds no fusion opportunities beyond what AMP+channels_last already exploit
+009	cfe19c2	95.39	improvement	Batch size 256 + LR 0.2 + 5-epoch warmup	Batch doubling with linear LR scaling yields 18% more epochs and +0.57pp; throughput-to-accuracy conversion remains the primary improvement driver
+010	cfe19c2	95.03	no-improvement	CutMix batch augmentation alpha=1.0	CutMix alpha=1.0 over-regularizes when stacked on TrivialAugmentWide+RandomErasing+WD=5e-4 in 96-epoch budget; needs more epochs or lower alpha
+011	cfe19c2	95.45	no-improvement	SE blocks (r=16) in BasicBlock	SE adds ~9ms/step overhead on H20 under AMP/channels_last, halving throughput (83 vs 98 epochs), negating per-epoch quality gain
+012	cfe19c2	95.23	no-improvement	Conv1x1-based SE blocks (channels_last-safe)	SE overhead (~9ms/step) is intrinsic to the computation, not channels_last format conversion; Conv2d(1x1) matches nn.Linear timing exactly
+013	cfe19c2	94.98	no-improvement	EMA of model weights (Polyak averaging) with beta=0.999	Parameter-only EMA fails with BatchNorm: BN running stats not in shadow cause eval mismatch, suppressing accuracy to 94.98%
+014	0000000	95.44	no-improvement	Full state_dict EMA (β=0.999)	Full state_dict EMA fixes BN mismatch from EXP-013 but yields only +0.05pp (95.44 vs 95.39); β=0.999 too conservative for 92-epoch budget
+015	626e9d1	95.57	improvement	Label smoothing 0.2 standalone	Zero-cost output regularization via label_smoothing=0.2 yields +0.18pp; complementary to input-space augmentation on high-capacity model
+016	626e9d1	95.59	no-improvement	Higher BN Momentum (0.5)	BN momentum 0.5 gives +0.02pp—within noise; fast BN convergence negligible at 98 epochs
+017	626e9d1	95.53	no-improvement	Mixup α=0.2 replacing RandomErasing	Mixup α=0.2 replacing RandomErasing yields 95.53% vs 95.57% baseline; RandomErasing more effective for this model/budget than mild cross-sample interpolation
+018	0000000	95.24	no-improvement	Stochastic depth (DropPath p_L=0.9) on BasicBlock residual branch	DropPath p_L=0.9 over-regularizes shallow 9-block ResNet-20; existing aug+WD+LS stack near regularization saturation
+019	355391a	95.91	improvement	Test-Time Augmentation (horizontal flip)	TTA averaging logits from original+flipped test images gives +0.34pp; orthogonal to training changes, zero training cost
+020	e94abe3	96.46	improvement	CosineAnnealingLR replacing wall-clock-fractional MultiStepLR	Cosine LR decay to ~0 (vs step decay to 0.002) adds +0.55pp; smooth transitions avoid AMP instability at intermediate LR
+021	e94abe3	96.23	no-improvement	Pre-activation ResNet blocks (BN-ReLU-Conv)	Pre-activation BN-ReLU-Conv causes ~6% throughput regression (93 vs 99 epochs) from reduced cuDNN kernel fusion; -0.23pp despite zero parameter cost
+022	e94abe3	96.53	no-improvement	Reflect padding + Cutout(12px) replacing RandomErasing	Cutout(12px)+reflect pad swap yields only +0.07pp; augmentation-quality swaps near noise floor at 96.46% baseline
+023	e94abe3	96.02	no-improvement	Cubic-scheduled EMA (Lookahead)	Cubic EMA shadow lags catastrophically during early training due to near-zero alpha; 4-epoch throughput cost compounds the deficit — EMA approach exhausted after 3 failed variants
+024	e94abe3	94.47	no-improvement	BN bias 64x LR multiplier	64x BN bias LR causes severe instability at lr=0.2; effective peak 12.8 overshoots, needs much lower multiplier or warmup-only scaling
+025	e94abe3	96.49	no-improvement	Gradient centralization on conv/linear weight gradients	GC adds +0.03pp but costs 3 epochs from per-step overhead; wider oscillations suggest GC modifies loss landscape unfavorably for this model
+026	e94abe3	96.52	no-improvement	Nesterov momentum (nesterov=True)	Nesterov gives +0.06pp (96.52% vs 96.46%); wider mid-training oscillations but slightly better final convergence than baseline — below 0.1pp threshold
+027	e94abe3	96.45	no-improvement	Nesterov + shortened warmup (3 epochs)	Shortened warmup (5->3) actually hurts: 96.45% vs 96.52% with Nesterov alone; 3-epoch warmup causes early instability that more epochs (98 vs 96) cannot recover
+028	e94abe3	96.31	no-improvement	ResNet-26 (NUM_BLOCKS=4, 5.8M params)	Depth increase (4.3M→5.8M) costs 22% epochs (96→75); deeper model at 96.31% vs 96.46% — capacity gain cannot compensate for undertrained model
+029	e94abe3	96.43	no-improvement	Learned 1x1 conv shortcut projections	Learned shortcuts give -0.03pp vs zero-padding; zero-padding may act as implicit regularization — removing it slightly hurts despite better gradient flow
+030	e94abe3	94.67	no-improvement	Proper per-channel std normalization (0.247, 0.244, 0.262)	Per-channel std normalization causes -1.79pp regression; 4x wider input range disrupts optimization dynamics tuned for std=1 — keep std=(1,1,1)
+031	00abbc2	96.56	improvement	Nesterov momentum + reflect padding in RandomCrop	Stacking two orthogonal zero-cost near-miss changes (Nesterov +0.06pp + reflect padding) compounds to +0.10pp — combination on different axes succeeds where singles fail
+032	00abbc2	96.64	no-improvement	Alternating flip augmentation (on Nesterov+reflect baseline)	Alternating flip adds +0.08pp on top of Nesterov+reflect baseline (96.64% vs 96.56%); below 0.1pp threshold but the signal is real — deterministic balanced flip helps
+033	00abbc2	96.52	no-improvement	Alternating flip + WD 4e-4 (reduced from 5e-4)	WD reduction 5e-4→4e-4 hurts: 96.52% vs 96.64% (alternating flip alone); WD=5e-4 is optimal — do not reduce
+034	00abbc2	96.47	no-improvement	Alternating flip + RandomErasing p=0.30 (from 0.25)	Increasing RandomErasing to p=0.30 hurts: 96.47% vs 96.64% (alt flip alone); both increasing AND decreasing regularization degrades accuracy with alt flip
