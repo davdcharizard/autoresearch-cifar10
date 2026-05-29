@@ -112,7 +112,7 @@ class ResNet(nn.Module):
             ch = out_ch
         return nn.Sequential(*layers)
 
-    def forward(self, x):
+    def _features(self, x):
         out = F.relu(self.bn1(self.conv1(x)))
         out = self.layer1(out)
         out = self.layer2(out)
@@ -120,6 +120,13 @@ class ResNet(nn.Module):
         out = F.adaptive_avg_pool2d(out, 1)
         out = out.view(out.size(0), -1)
         return self.fc(out)
+
+    def forward(self, x):
+        if self.training:
+            return self._features(x)
+        logits = self._features(x)
+        logits_flip = self._features(x.flip(3))
+        return (logits + logits_flip) / 2
 
 
 # ---------------------------------------------------------------------------
