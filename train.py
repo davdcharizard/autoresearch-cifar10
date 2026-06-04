@@ -26,7 +26,7 @@ WEIGHT_DECAY = 5e-4
 EMA_DECAY = 0.999
 LABEL_SMOOTHING = 0.1
 WARMUP_EPOCHS = 5
-COSINE_T_MAX = 49
+COSINE_T_MAX = 55
 WIDTH_MULT = 4
 CUTMIX_ALPHA = 1.0
 CUTMIX_PROB = 0.5
@@ -140,8 +140,9 @@ def main():
     # ---------------------------------------------------------------------------
 
     t_start = time.time()
-    torch.manual_seed(42)
-    torch.cuda.manual_seed(42)
+    torch.manual_seed(0)
+    torch.cuda.manual_seed(0)
+    np.random.seed(1)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Device: {device}")
 
@@ -171,6 +172,7 @@ def main():
     )
 
     model = ResNet(NUM_BLOCKS, NUM_CLASSES, width_mult=WIDTH_MULT).to(device)
+    model = model.to(memory_format=torch.channels_last)
     num_params = sum(p.numel() for p in model.parameters())
     print(f"ResNet-{6 * NUM_BLOCKS + 2} (w={WIDTH_MULT}) | params: {num_params:,}")
 
@@ -178,7 +180,7 @@ def main():
     ema_model.eval()
 
     model = torch.compile(model)
-    with torch.amp.autocast("cuda"):
+    with torch.amp.autocast("cuda", dtype=torch.bfloat16):
         dummy = torch.randn(2, 3, 32, 32, device=device)
         model(dummy)
     print("torch.compile warmup done")
@@ -190,7 +192,6 @@ def main():
         weight_decay=WEIGHT_DECAY,
         nesterov=True,
     )
-    scaler = torch.amp.GradScaler()
     warmup_scheduler = optim.lr_scheduler.LinearLR(
         optimizer, start_factor=0.1, total_iters=WARMUP_EPOCHS
     )
@@ -223,7 +224,7 @@ def main():
 
         for inputs, targets in train_loader:
             t0 = time.time()
-            inputs = inputs.to(device, non_blocking=True)
+            inputs = inputs.to(device, memory_format=torch.channels_last, non_blocking=True)
             targets = targets.to(device, non_blocking=True)
 
             use_cutmix = np.random.rand() < CUTMIX_PROB
@@ -233,7 +234,7 @@ def main():
                 )
 
             optimizer.zero_grad()
-            with torch.amp.autocast("cuda"):
+            with torch.amp.autocast("cuda", dtype=torch.bfloat16):
                 outputs = model(inputs)
                 if use_cutmix:
                     loss = lam * criterion(outputs, targets_a) + (
@@ -241,9 +242,8 @@ def main():
                     ) * criterion(outputs, targets_b)
                 else:
                     loss = criterion(outputs, targets)
-            scaler.scale(loss).backward()
-            scaler.step(optimizer)
-            scaler.update()
+            loss.backward()
+            optimizer.step()
 
             with torch.no_grad():
                 for p_ema, p in zip(ema_model.parameters(), model.parameters()):
@@ -279,6 +279,9 @@ def main():
                 break
 
         scheduler.step()
+        if epoch > WARMUP_EPOCHS + COSINE_T_MAX:
+            for pg in optimizer.param_groups:
+                pg['lr'] = 0.0
         test_loss, test_acc = evaluator.evaluate(ema_model, device)
 
         if test_acc > best_acc:
