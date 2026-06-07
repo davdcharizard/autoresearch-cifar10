@@ -220,3 +220,6 @@ __marimo__/
 
 # Codex
 .codex/
+.autoresearch/
+.claude/hooks/protect-files.sh
+.codex/hooks/protect-files.sh
