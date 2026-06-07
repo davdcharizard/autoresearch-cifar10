@@ -2,6 +2,10 @@
 
 This is a task to improve a Resnet20 baseline from 2016 up to date.
 
+## Git Rules
+
+If the git remote is unavailable to push or make PRs, **this is intentional**. Keep all commits local for experimentation - the purpose is to isolate the experiments from any remote branches that might contain any information on how to improve the baseline, which would be a source of data leakage.
+
 ## Files
 
 **Read the in-scope files**: The repo is small. Read the files for full context:
@@ -57,3 +61,7 @@ grep "^best_test_acc:\|^peak_vram_mb:" run.log
 ```
 
 If the grep output is empty, the run crashed. You can run `tail -n 50 run.log` to read the Python stack trace and attempt a fix.
+
+## Cleanup
+
+When an experiment is finished and the log is no longer needed, make sure to remove the `run.log` before making any new experiments. This helps keep the working tree clean instead of letting logs accumulate from prior experiments.
