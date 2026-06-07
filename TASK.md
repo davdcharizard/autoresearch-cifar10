@@ -23,6 +23,7 @@ Each experiment must run on a single GPU. On the compute node you should have ac
 - Modify `prepare.py`. It is read-only. It contains the fixed evaluation and time budget
 - Install new packages or add dependencies. You can only use what is already in `pyproject.toml`
 - Modify the evaluation harness. The `Eval.evaluate()` method in `prepare.py` is the ground truth metric.*
+- Seed hacking is **NOT** an optimization move. Do not try re-rolling seeds to bump the metric when no genuine enhancement exists.
 
 **The goal is simple: get the highest test accuracy (best_test_acc) possible.** Since the training time budget is fixed and the validation time is removed focus only on getting the best hyperparameters and training code setup. The first constraint is that the code runs without crashing and finishes within the time budget. The second is not to run the validation more than once per epoch
 
@@ -64,4 +65,4 @@ If the grep output is empty, the run crashed. You can run `tail -n 50 run.log` t
 
 ## Cleanup
 
-When an experiment is finished and the log is no longer needed, make sure to remove the `run.log` before making any new experiments. This helps keep the working tree clean instead of letting logs accumulate from prior experiments.
+When an experiment is finished and the log is no longer needed, make sure to remove the `run.log` (or any renamed variant) before making any new experiments. This helps keep the working tree clean instead of letting logs accumulate from prior experiments.
