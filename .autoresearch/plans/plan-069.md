@@ -1,0 +1,1 @@
+# Plan EXP-069: LABEL_SMOOTHING = 0.1 → 0.15

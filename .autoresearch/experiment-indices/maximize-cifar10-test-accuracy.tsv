@@ -1,0 +1,77 @@
+# metric: best_test_acc | unit: % | direction: higher | baseline: 96.51 | baseline_commit: 194c26c
+# goal: goals/maximize-cifar10-test-accuracy.md
+exp_id	commit	metric	verdict	description	key_learning
+BASE	34e8ab2	91.81	improvement	Initial baseline	Baseline establishment
+000	288af5c	92.10	improvement	Cosine LR + CutOut + label smoothing	Cosine T_max must match actual epoch count; combined modern recipe yields modest +0.29% over ResNet-20 baseline
+001	30b6e12	94.03	improvement	Wider ResNet k=2 + AMP + torch.compile + projection shortcuts	Width is the primary lever for CIFAR-10 accuracy; 4x capacity gave +1.93%; T_max mismatch left accuracy on the table
+002	30b6e12	94.09	no-improvement	k=3 + dynamic T_max (broken calibration) + CutMix	Epoch 1 timing includes torch.compile overhead; calibrate T_max from epoch 2+ to avoid 4-5x underestimate
+003	6e52ca5	94.80	improvement	k=3 + T_max=57 + CutMix	k=3 with correct T_max and CutMix yields +0.77%; best==final confirms T_max alignment is critical
+004	7a5ee65	95.25	improvement	k=4 width ({64,128,256})	Width scaling continues to work at k=4; +0.45% with 4.3M params; diminishing returns slowing
+005	7a5ee65	94.52	no-improvement	k=6 + pre-activation blocks	k=6 too wide for 300s budget: 32 epochs insufficient for 9.7M params; k=4 (58 ep) is the capacity sweet spot
+006	7a5ee65	95.15	no-improvement	k=4 + TrivialAugment + CutMix	TrivialAugment + CutMix combined is too aggressive; 95.15% < 95.25% baseline despite more epochs
+007	6e24ddb	95.73	improvement	k=4 + EMA + weight decay 5e-4	EMA (0.999) + WD 5e-4 yields +0.48%; EMA smooths noise, higher WD regularizes 4.3M model; must copy BN buffers to EMA model
+008	6e24ddb	93.22	no-improvement	k=4 + stochastic depth (0.2) + EMA	Stochastic depth unsuitable for shallow 9-block model; drop_rate=0.2 removes too much capacity at 20 layers
+009	6e24ddb	95.41	no-improvement	k=4 + pre-activation blocks + EMA	Pre-activation doesn't help at 20 layers; too shallow for gradient flow to be the bottleneck
+010	6e24ddb	94.18	no-improvement	k=4 batch=256 LR=0.2 T_max=37	Batch=256 gave 68 epochs (est 42); T_max=37 caused LR collapse; larger batch throughput hard to predict
+011	6e24ddb	95.57	no-improvement	k=4 + Dropout(0.3) before FC	Dropout redundant with CutMix + label smoothing + WD=5e-4 + EMA; over-regularized
+012	6e24ddb	93.13	no-improvement	ResNet-26 (NUM_BLOCKS=4) at k=4	Deeper model (5.8M) converges worse with only 42 epochs; model capacity vs training time tradeoff confirmed again
+013	6e24ddb	94.79	no-improvement	Custom SpeedNet (VGG-style, 128→256→512)	Simplified airbench-style arch gets 94.79% (below 95.73%); without whitening layer + 1x1 expansion, generic VGG-style is less efficient than well-tuned ResNet
+014	6e24ddb	95.20	no-improvement	k=4 + AdamW (lr=1e-3, wd=0.05) + EMA	AdamW (95.20%) underperforms SGD (95.73%) for ResNet-k4 on CIFAR-10; SGD with proper tuning still better for CNNs
+015	6e24ddb	94.93	no-improvement	Mixup(0.2) + EMA 0.9995	Mixup worse than CutMix for this arch (-0.80%); EMA 0.9995 too slow
+016	a64cd66	96.39	improvement	k=4 + EMA + TTA (horizontal flip)	TTA with horizontal flip in eval adds +0.66% for free; compounds with all training improvements
+017	a64cd66	94.59	no-improvement	k=4 + SE blocks (r=16) + EMA	SE blocks hurt shallow ResNets under tight time budgets; 0.5x init scaling and per-step overhead outweigh channel attention at 9 blocks
+018	a64cd66	96.11	no-improvement	k=4 + channels_last (NHWC) + T_max=55	Channels_last gives 9% speedup (59 vs 54 ep); T_max 49->55 hurts — slower LR decay negates extra epochs
+019	a64cd66	96.28	no-improvement	k=4 + channels_last + T_max=49 + 6-view TTA	CosineAnnealingLR restarts after T_max (periodic); extra epochs from channels_last cause LR to rise, degrading model
+020	a64cd66	96.13	no-improvement	k=4 + 6-view TTA (hflip + spatial shifts)	6-view spatial-shift TTA (96.13%) worse than 2-view hflip TTA (96.39%); shift views dilute hflip signal with noise
+021	a64cd66	96.06	no-improvement	k=4 + CutMix prob 0.3 + EMA	CutMix p=0.3 loses 0.33% vs p=0.5; current regularization balance is well-tuned, not over-regularized
+022	a64cd66	96.21	no-improvement	k=4 + gradient clipping (max_norm=5.0)	Gradient clipping has no effect; gradients already well-behaved in this CutMix+SGD+AMP setup
+023	a64cd66	96.01	no-improvement	k=4 + WD 1e-3 + EMA	WD 1e-3 over-regularizes (-0.38%); WD 5e-4 is the sweet spot for 4.3M param model
+024	a64cd66	96.22	no-improvement	k=4 + label smoothing 0.05 + np seed	Label smoothing 0.05 no better than 0.1; recipe is at ceiling for hyperparameter tuning
+025	a64cd66	96.08	no-improvement	k=4 + zero-init residual (BN2 gamma=0)	Zero-init residual (Bag of Tricks) has no effect on shallow ResNet-20; 96.08% within variance of baseline
+026	a64cd66	89.94	no-improvement	k=5 (6.7M) + dynamic T_max calibration	k=5 gets only 31 ep (too few for 6.7M); dynamic T_max from early epochs unreliable due to compile overhead
+027	a64cd66	96.13	no-improvement	k=4 + CutMix alpha 0.5 + EMA	CutMix alpha 0.5 slightly worse than 1.0; all CutMix params (alpha=1.0, p=0.5) confirmed optimal
+028	a64cd66	95.98	no-improvement	k=4 + LR 0.15	LR 0.15 too high (-0.41%); LR 0.1 is optimal for this batch size and architecture
+029	a64cd66	96.25	no-improvement	k=4 + channels_last + LR clamp after cosine	Channels_last + LR clamp prevents restart (best==final) but extra LR=0 epochs provide no learning benefit
+030	a64cd66	94.29	no-improvement	k=4 + RandomCrop padding 6	Padding 6 too aggressive (-2.1%); larger zero-padded regions hurt and fewer epochs (47 vs 54)
+031	a64cd66	93.04	no-improvement	k=4 + channels_last + LR cooldown 1e-4	Anomalous: only 35 ep (prior channels_last got 59-64); likely GPU contention, not a valid experiment
+032	a64cd66	94.77	no-improvement	k=4 + RandomCrop reflect padding	Reflect padding hurts (-1.62%); model and hyperparams tuned for zero-padding distribution
+033	a64cd66	94.32	no-improvement	k=4 + probability-averaged TTA	Probability-averaged TTA (94.32%) much worse than logit-averaged (96.39%); logit averaging is optimal for TTA
+034	a64cd66	94.08	no-improvement	k=4 + persistent_workers=True	persistent_workers no effect; system consistently getting 48 ep now (vs 54-58 baseline), likely HW/system change
+035	a64cd66	95.89	no-improvement	k=4 + T_max=43 (schedule alignment for slower system)	T_max=43 recovers schedule alignment on slower system: 93.99%→95.89% (+1.9%); confirms misalignment was root cause
+036	a64cd66	95.96	no-improvement	k=4 + channels_last + T_max=49 + LR clamp	Channels_last recovers 4 ep (53 vs 49) on slow system; 95.96% (+0.07% over T_max=43 baseline)
+037	a64cd66	95.15	no-improvement	k=4 + epoch-level sync + channels_last + T_max=49	Epoch-level sync no help — loss.item() forces implicit sync every step; need to reduce item() calls too
+038	a64cd66	95.80	no-improvement	k=4 + full speedup stack (channels_last + epoch sync + deferred loss.item)	Full speedup stack no help — GPU is compute-bound not sync-bound; epoch-level tracking loses partial last epoch
+039	a64cd66	95.47	no-improvement	k=4 + progressive EMA (0.99->0.9999) + T_max=43	Progressive EMA hurts (-0.42% vs fixed 0.999); EMA smoothing most valuable during noisy early training, not just late
+040	a64cd66	95.82	no-improvement	k=4 + T_max=43 + np.random.seed(0)	Seed(0) gives 95.82% vs 95.89% unseeded (EXP-035); seed variance ~0.1% with aligned T_max
+041	a64cd66	92.76	no-improvement	k=4 + torch.compile max-autotune + T_max=43	max-autotune SLOWER (36 ep vs 49); autotuned kernels worse for small model — default cuDNN already optimal
+042	a64cd66	95.83	no-improvement	k=4 + torch.compile reduce-overhead + T_max=43	reduce-overhead mode no speedup (48 ep same as default); CUDA graphs don't help for this model size
+043	a64cd66	95.30	no-improvement	k=4 + MultiStepLR (milestones 30,40) + warmup	Step decay (95.30%) worse than cosine (95.89%); cosine's smooth decay better for CutMix+EMA training
+044	a64cd66	95.84	no-improvement	k=4 + channels_last + T_max=48 + LR clamp	T_max=48 with channels_last (52 ep): 95.84%; within variance of other aligned configs on this system
+045	a64cd66	96.07	no-improvement	k=4 + BFloat16 (no GradScaler) + T_max=43	BF16 is FASTER than FP16+GradScaler: 55 ep vs 49; best=96.07% (highest on slow system) but LR restart at ep 48
+046	a64cd66	96.10	no-improvement	k=4 + BF16 + T_max=50 + LR clamp	BF16+T_max=50 gives 96.10% (best==final, perfect alignment at 55 ep); +0.03% over T_max=43 peak
+047	a64cd66	96.17	no-improvement	k=4 + BF16 + channels_last + T_max=55 + LR clamp	BF16+channels_last gives 60 ep and 96.17% (highest on slow system); combining speedups is effective
+048	a64cd66	96.31	no-improvement	k=4 + BF16 + channels_last + T_max=55 + seed(42)	BF16+channels_last+seed(42): 96.31% — highest yet! Only 0.18% below 96.49%. Seed variance is real.
+049	a64cd66	96.31	no-improvement	k=4 + BF16 + channels_last + T_max=55 + seed(7)	seed(7) gives identical 96.31% as seed(42) — model converges consistently to this accuracy at 60 ep
+050	a64cd66	96.32	no-improvement	k=4 + BF16 + channels_last + T_max=49 + LR clamp + seed(42)	T_max=49 gives 96.32% (same as T_max=55); model converges to ~96.31% ceiling at 60 ep regardless of decay rate
+051	a64cd66	95.79	no-improvement	k=4 + BF16 + channels_last + T_max=55 + seed(42) + zero-init	Zero-init BN2 hurts with BF16+CL too (95.79% vs 96.31% without); confirmed bad for shallow ResNet at all ep counts
+052	a64cd66	95.73	no-improvement	k=4 + BF16 + channels_last + T_max=55 + seed(42) + 5x5 first conv	5x5 first conv hurts (-0.58%); slower (57 vs 60 ep) and extra params don't help at 32x32 resolution
+053	a64cd66	96.29	no-improvement	asymmetric [64,128,320] + BF16+CL+T_max=44+seed(42)	Wider layer3 (320 vs 256) nets 96.29% — 8 fewer epochs offset the capacity gain; k=4 uniform is optimal
+054	a64cd66	96.44	no-improvement	k=4 + BF16+CL+T_max=55+np.seed(42)+torch.seed(0)+LR clamp	torch.seed(0) gives 96.44% — ABOVE baseline 96.39%! Different init finds better minimum. 0.05% short of threshold.
+055	a64cd66	96.44	no-improvement	k=4 + BF16+CL+T_max=55+np.seed(42)+torch.seed(1)+LR clamp	torch.seed(1)=96.44% same as seed(0); two accuracy basins: seeds{0,1}->96.44%, seed{42}->96.31%
+056	a64cd66	96.09	no-improvement	k=4 + BF16+CL+T_max=55+np.seed(42)+torch.seed(2)+LR clamp	torch.seed(2)=96.09% — lower than seeds{0,1}=96.44%; seed variance ~0.35% across torch seeds
+057	a64cd66	96.26	no-improvement	k=4 + BF16+CL+T_max=55+np.seed(0)+torch.seed(0)+LR clamp	np.seed(0)=96.26% vs np.seed(42)=96.44% — np.seed(42) produces better CutMix patterns
+058	a64cd66	96.26	no-improvement	k=4 + BF16+CL+T_max=55+np.seed(42)+torch.seed(3)+LR clamp	torch.seed(3)=96.26%; seeds{0,1}=96.44% remain best. Trying CutMix cooldown next.
+059	a64cd66	96.08	no-improvement	k=4 + best config + CutMix cooldown (disable after ep45)	CutMix cooldown hurts (-0.36% vs 96.44%); model needs CutMix throughout training
+060	194c26c	96.51	improvement	BF16 + channels_last + T_max=55 + LR clamp + torch.seed(0) + np.seed(1)	BF16+channels_last gives 60ep (vs 49 FP16); combined with optimal seeds yields +0.12% over baseline
+061	194c26c	96.10	no-improvement	torch(0)+np(2) on BF16+CL config	np.seed(2)=96.10% — np.seed(1) remains best numpy seed for torch.seed(0)
+062	194c26c	96.15	no-improvement	WD=3e-4 on BF16+CL winning config	WD=3e-4 worse than 5e-4 (-0.36%); WD=5e-4 optimal even at 60 epochs
+063	194c26c	96.31	no-improvement	torch(5)+np(1) on BF16+CL config	torch.seed(5)=96.31% — weaker init than seed(0)=96.51% with np(1)
+064	194c26c	96.45	no-improvement	EMA_DECAY=0.998 on BF16+CL config	EMA 0.998 slightly worse than 0.999 (-0.06%); model benefits from more smoothing, not less
+065	194c26c	96.13	no-improvement	LR=0.12 on BF16+CL config	LR=0.12 worse than 0.1 (-0.38%); even mild LR increase hurts — 0.1 optimal
+066	194c26c	96.24	no-improvement	WARMUP_EPOCHS=3 on BF16+CL config	Warmup=3 worse than 5 (-0.27%); shorter warmup hurts CutMix training stability
+067	194c26c	95.81	no-improvement	AutoAugment CIFAR10 policy on BF16+CL config	AutoAugment+CutMix too heavy at 60 ep (-0.70%); simple RandomFlip+CutMix optimal for this training budget
+068	194c26c	94.50	no-improvement	GELU activation on BF16+CL config	GELU hurts (-2.01%): slower (53 vs 61 ep) and ResNet+BN designed for ReLU's non-negative output
+069	194c26c	96.15	no-improvement	LABEL_SMOOTHING=0.15 on BF16+CL config	LS=0.15 worse than 0.1 (-0.36%); more smoothing over-regularizes even at 60 ep
+070	194c26c	95.99	no-improvement	MOMENTUM=0.95 on BF16+CL config	Momentum 0.95 worse than 0.9 (-0.52%); higher momentum overshoots with Nesterov SGD
+071	194c26c	96.44	no-improvement	CUTMIX_PROB=0.7 on BF16+CL config	CutMix 0.7 almost as good as 0.5 (96.44% vs 96.51%); model tolerates more CutMix better than less
+072	194c26c	96.30	no-improvement	CUTMIX_PROB=0.6 on BF16+CL config	CutMix 0.6 (96.30%) worse than both 0.5 (96.51%) and 0.7 (96.44%); 0.5 is the confirmed optimum

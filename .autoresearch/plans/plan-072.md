@@ -1,0 +1,1 @@
+# Plan EXP-072: CUTMIX_PROB = 0.5 → 0.6

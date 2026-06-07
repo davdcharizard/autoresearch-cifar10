@@ -1,0 +1,1 @@
+# Plan EXP-064: EMA_DECAY = 0.999 → 0.998

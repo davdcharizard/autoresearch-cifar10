@@ -1,0 +1,1 @@
+# Plan EXP-070: MOMENTUM = 0.9 → 0.95

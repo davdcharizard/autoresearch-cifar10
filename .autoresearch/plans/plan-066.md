@@ -1,0 +1,1 @@
+# Plan EXP-066: WARMUP_EPOCHS = 5 → 3

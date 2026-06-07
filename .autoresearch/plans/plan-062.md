@@ -1,0 +1,1 @@
+# Plan EXP-062: WEIGHT_DECAY = 5e-4 → 3e-4
