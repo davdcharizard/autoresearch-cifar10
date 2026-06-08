@@ -157,6 +157,10 @@ def main():
         [
             transforms.RandomCrop(32, padding=4),
             transforms.RandomHorizontalFlip(),
+            # TrivialAugment (Müller & Hutter, ICCV 2021): one random op per image at a
+            # uniformly random strength — parameter-free SOTA auto-augmentation. Adds
+            # photometric+geometric invariance orthogonal to Cutout's occlusion (EXP-012).
+            transforms.TrivialAugmentWide(),
             transforms.ToTensor(),
             transforms.Normalize(mean, std),
         ]
@@ -179,6 +183,11 @@ def main():
     )
     num_params = sum(p.numel() for p in model.parameters())
     print(f"ResNet-{6 * NUM_BLOCKS + 2} | params: {num_params:,}")
+
+    # torch.compile (reduce-overhead) — execution-only throughput enabler (~30% on this
+    # launch-bound k=4 net, EXP-007; null standalone accuracy effect). Buys epoch headroom
+    # to absorb TrivialAugment's extra CPU augmentation cost. Eval stays on the eager handle.
+    compiled_model = torch.compile(model, mode="reduce-overhead")
 
     optimizer = optim.SGD(
         model.parameters(),
@@ -221,7 +230,7 @@ def main():
 
             optimizer.zero_grad()
             with torch.autocast(device_type="cuda", dtype=torch.bfloat16):
-                outputs = model(inputs)
+                outputs = compiled_model(inputs)
                 loss = F.cross_entropy(
                     outputs, targets, label_smoothing=LABEL_SMOOTHING
                 )
