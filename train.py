@@ -41,22 +41,20 @@ def lr_at_fraction(frac):
     return PEAK_LR * 0.5 * (1.0 + math.cos(math.pi * progress))
 
 
-class Cutout:
-    """Cutout (DeVries & Taylor 2017): zero one random square of side `size` on a
-    normalized CxHxW tensor. Train-only regularizer; uses the seeded torch RNG."""
-
-    def __init__(self, size):
-        self.size = size
-
-    def __call__(self, img):
-        _, h, w = img.shape
-        s = self.size
-        cy = int(torch.randint(0, h, (1,)).item())
-        cx = int(torch.randint(0, w, (1,)).item())
-        y1, y2 = max(0, cy - s // 2), min(h, cy + s // 2)
-        x1, x2 = max(0, cx - s // 2), min(w, cx + s // 2)
-        img[:, y1:y2, x1:x2] = 0.0
-        return img
+def cutout_batch(x, size):
+    """Cutout (DeVries & Taylor 2017), vectorized on the GPU batch: zero one random
+    size×size window per image (clipped to the border). Train-only regularizer using
+    the seeded torch RNG. Applied per batch in the training loop — no per-sample CPU
+    `.item()` syncs, so it does not throttle the dataloader (see EXP-002)."""
+    b, _, h, w = x.shape
+    cy = torch.randint(0, h, (b,), device=x.device)
+    cx = torch.randint(0, w, (b,), device=x.device)
+    y0 = (cy - size // 2).view(b, 1, 1)
+    x0 = (cx - size // 2).view(b, 1, 1)
+    yy = torch.arange(h, device=x.device).view(1, h, 1)
+    xx = torch.arange(w, device=x.device).view(1, 1, w)
+    hole = (yy >= y0) & (yy < y0 + size) & (xx >= x0) & (xx < x0 + size)  # (B,H,W)
+    return x.masked_fill(hole.unsqueeze(1), 0.0)
 
 
 # ---------------------------------------------------------------------------
@@ -161,7 +159,6 @@ def main():
             transforms.RandomHorizontalFlip(),
             transforms.ToTensor(),
             transforms.Normalize(mean, std),
-            Cutout(CUTOUT_SIZE),
         ]
     )
 
@@ -214,6 +211,7 @@ def main():
                 device, non_blocking=True, memory_format=torch.channels_last
             )
             targets = targets.to(device, non_blocking=True)
+            inputs = cutout_batch(inputs, CUTOUT_SIZE)  # vectorized GPU Cutout (train only)
 
             # Budget-matched LR: drive the schedule by elapsed-time fraction so it
             # anneals fully regardless of how many steps the throughput allows.
