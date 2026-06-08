@@ -17,6 +17,7 @@ from prepare import DATASET_DIR, NUM_WORKERS, TIME_BUDGET_S, Eval
 # ---------------------------------------------------------------------------
 
 NUM_BLOCKS = 3  # ResNet-20 = 6*3+2
+WIDTH_MULT = 4  # WideResNet-style width multiplier: stages {16,32,64} -> {64,128,256}
 NUM_CLASSES = 10
 BATCH_SIZE = 128
 PEAK_LR = 0.2  # one-cycle-style peak; warmup mitigates instability, BN is tolerant
@@ -56,30 +57,37 @@ class BasicBlock(nn.Module):
         )
         self.bn2 = nn.BatchNorm2d(out_channels)
 
-        self.stride = stride
-        self.need_pad = stride != 1 or in_channels != out_channels
-        self.pad_channels = out_channels - in_channels if self.need_pad else 0
+        # Projection (1x1 conv) shortcut on downsample/channel-change blocks — the
+        # standard ResNet-B/WRN downsample, better suited to wider stages than the
+        # lossy channel-padding identity it replaces.
+        if stride != 1 or in_channels != out_channels:
+            self.shortcut = nn.Sequential(
+                nn.Conv2d(in_channels, out_channels, 1, stride=stride, bias=False),
+                nn.BatchNorm2d(out_channels),
+            )
+        else:
+            self.shortcut = nn.Identity()
 
     def forward(self, x):
         out = F.relu(self.bn1(self.conv1(x)))
         out = self.bn2(self.conv2(out))
-        shortcut = x
-        if self.need_pad:
-            shortcut = shortcut[:, :, :: self.stride, :: self.stride]
-            shortcut = F.pad(shortcut, (0, 0, 0, 0, 0, self.pad_channels))
-        out += shortcut
+        out += self.shortcut(x)
         return F.relu(out)
 
 
 class ResNet(nn.Module):
-    def __init__(self, num_blocks, num_classes=10):
+    def __init__(self, num_blocks, num_classes=10, width_mult=1):
         super().__init__()
+        # WideResNet-style: keep the stem at 16 channels, widen the three stages by
+        # width_mult (k=1 reproduces the original {16,32,64} ResNet-20 exactly).
+        k = width_mult
+        w1, w2, w3 = 16 * k, 32 * k, 64 * k
         self.conv1 = nn.Conv2d(3, 16, 3, stride=1, padding=1, bias=False)
         self.bn1 = nn.BatchNorm2d(16)
-        self.layer1 = self._make_layer(16, 16, num_blocks, stride=1)
-        self.layer2 = self._make_layer(16, 32, num_blocks, stride=2)
-        self.layer3 = self._make_layer(32, 64, num_blocks, stride=2)
-        self.fc = nn.Linear(64, num_classes)
+        self.layer1 = self._make_layer(16, w1, num_blocks, stride=1)
+        self.layer2 = self._make_layer(w1, w2, num_blocks, stride=2)
+        self.layer3 = self._make_layer(w2, w3, num_blocks, stride=2)
+        self.fc = nn.Linear(w3, num_classes)
         self.apply(self._weights_init)
 
     @staticmethod
@@ -149,7 +157,7 @@ def main():
         drop_last=True,
     )
 
-    model = ResNet(NUM_BLOCKS, NUM_CLASSES).to(
+    model = ResNet(NUM_BLOCKS, NUM_CLASSES, width_mult=WIDTH_MULT).to(
         device, memory_format=torch.channels_last
     )
     num_params = sum(p.numel() for p in model.parameters())
