@@ -223,3 +223,7 @@ __marimo__/
 .autoresearch/
 .claude/hooks/protect-files.sh
 .codex/hooks/protect-files.sh
+
+# Autoresearch plugin
+.claude/settings.json
+.codex/hooks.json
