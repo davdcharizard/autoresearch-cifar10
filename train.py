@@ -17,10 +17,12 @@ from prepare import DATASET_DIR, NUM_WORKERS, TIME_BUDGET_S, Eval
 
 NUM_BLOCKS = 3  # ResNet-20 = 6*3+2
 NUM_CLASSES = 10
+STAGE_WIDTHS = (20, 40, 80)
 BATCH_SIZE = 128
 LR = 0.1
 MOMENTUM = 0.9
 WEIGHT_DECAY = 1e-4
+LR_MILESTONES = [24000, 64000]
 MAX_STEPS = 64000
 USE_CUDNN_BENCHMARK = True
 USE_CHANNELS_LAST = True
@@ -63,12 +65,13 @@ class BasicBlock(nn.Module):
 class ResNet(nn.Module):
     def __init__(self, num_blocks, num_classes=10):
         super().__init__()
-        self.conv1 = nn.Conv2d(3, 16, 3, stride=1, padding=1, bias=False)
-        self.bn1 = nn.BatchNorm2d(16)
-        self.layer1 = self._make_layer(16, 16, num_blocks, stride=1)
-        self.layer2 = self._make_layer(16, 32, num_blocks, stride=2)
-        self.layer3 = self._make_layer(32, 64, num_blocks, stride=2)
-        self.fc = nn.Linear(64, num_classes)
+        w1, w2, w3 = STAGE_WIDTHS
+        self.conv1 = nn.Conv2d(3, w1, 3, stride=1, padding=1, bias=False)
+        self.bn1 = nn.BatchNorm2d(w1)
+        self.layer1 = self._make_layer(w1, w1, num_blocks, stride=1)
+        self.layer2 = self._make_layer(w1, w2, num_blocks, stride=2)
+        self.layer3 = self._make_layer(w2, w3, num_blocks, stride=2)
+        self.fc = nn.Linear(w3, num_classes)
         self.apply(self._weights_init)
 
     @staticmethod
@@ -152,7 +155,7 @@ def main():
         model.parameters(), lr=LR, momentum=MOMENTUM, weight_decay=WEIGHT_DECAY
     )
     scheduler = optim.lr_scheduler.MultiStepLR(
-        optimizer, milestones=[32000, 48000], gamma=0.1
+        optimizer, milestones=LR_MILESTONES, gamma=0.1
     )
     print(f"Time budget: {TIME_BUDGET_S}s")
     print(f"Batches per epoch: {len(train_loader)}")
