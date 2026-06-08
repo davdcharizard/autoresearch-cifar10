@@ -25,6 +25,7 @@ WARMUP_FRAC = 0.05  # fraction of the time budget spent linearly warming 0 -> PE
 MOMENTUM = 0.9
 WEIGHT_DECAY = 1e-4
 LABEL_SMOOTHING = 0.1
+CUTOUT_SIZE = 16  # Cutout hole side (px) — standard CIFAR-10 value (DeVries & Taylor 2017)
 # Time is the sole limiter (loop is gated by TIME_BUDGET_S). Set high so the
 # time-fraction LR schedule always anneals fully regardless of realized throughput.
 MAX_STEPS = 10_000_000
@@ -38,6 +39,24 @@ def lr_at_fraction(frac):
         return PEAK_LR * frac / WARMUP_FRAC
     progress = (frac - WARMUP_FRAC) / (1.0 - WARMUP_FRAC)
     return PEAK_LR * 0.5 * (1.0 + math.cos(math.pi * progress))
+
+
+class Cutout:
+    """Cutout (DeVries & Taylor 2017): zero one random square of side `size` on a
+    normalized CxHxW tensor. Train-only regularizer; uses the seeded torch RNG."""
+
+    def __init__(self, size):
+        self.size = size
+
+    def __call__(self, img):
+        _, h, w = img.shape
+        s = self.size
+        cy = int(torch.randint(0, h, (1,)).item())
+        cx = int(torch.randint(0, w, (1,)).item())
+        y1, y2 = max(0, cy - s // 2), min(h, cy + s // 2)
+        x1, x2 = max(0, cx - s // 2), min(w, cx + s // 2)
+        img[:, y1:y2, x1:x2] = 0.0
+        return img
 
 
 # ---------------------------------------------------------------------------
@@ -142,6 +161,7 @@ def main():
             transforms.RandomHorizontalFlip(),
             transforms.ToTensor(),
             transforms.Normalize(mean, std),
+            Cutout(CUTOUT_SIZE),
         ]
     )
 
