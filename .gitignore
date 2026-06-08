@@ -227,3 +227,6 @@ __marimo__/
 .claude/settings.json
 .codex/hooks/protect-files.sh
 .codex/hooks.json
+
+# CIFAR-10 dataset (downloaded at runtime)
+data/
