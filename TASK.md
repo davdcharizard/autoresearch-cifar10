@@ -25,7 +25,7 @@ Each experiment must run on a single GPU. On the compute node you should have ac
 - Modify the evaluation harness. The `Eval.evaluate()` method in `prepare.py` is the ground truth metric.*
 - Seed hacking is **NOT** an optimization move. Do not try re-rolling seeds to bump the metric when no genuine enhancement exists.
 
-**The goal is simple: get the highest test accuracy (best_test_acc) possible.** Since the training time budget is fixed and the validation time is removed focus only on getting the best hyperparameters and training code setup. The first constraint is that the code runs without crashing and finishes within the time budget. The second is not to run the validation more than once per epoch
+**The goal is simple: get the highest test accuracy (best_test_acc) possible.** Since the training time budget is fixed and the validation time is removed focus only on getting the best hyperparameters and training code setup. The first constraint is that the code runs without crashing and finishes within the time budget. The second is not to run the validation more than once per epoch. **The metric must surprass the previous high by at least 0.1% to count as an improvement**.
 
 **VRAM** is a soft constraint. Some increase if acceptable for meaningful increase in best_test_acc. With this dataset you should have some leeway.
 
