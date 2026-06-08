@@ -1,4 +1,5 @@
 import gc
+import math
 import time
 
 import torch
@@ -18,11 +19,24 @@ from prepare import DATASET_DIR, NUM_WORKERS, TIME_BUDGET_S, Eval
 NUM_BLOCKS = 3  # ResNet-20 = 6*3+2
 NUM_CLASSES = 10
 BATCH_SIZE = 128
-LR = 0.1
+PEAK_LR = 0.2  # one-cycle-style peak; warmup mitigates instability, BN is tolerant
+WARMUP_FRAC = 0.05  # fraction of the time budget spent linearly warming 0 -> PEAK_LR
 MOMENTUM = 0.9
 WEIGHT_DECAY = 1e-4
-MAX_STEPS = 64000
+LABEL_SMOOTHING = 0.1
+# Time is the sole limiter (loop is gated by TIME_BUDGET_S). Set high so the
+# time-fraction LR schedule always anneals fully regardless of realized throughput.
+MAX_STEPS = 10_000_000
 evaluator = Eval()
+
+
+def lr_at_fraction(frac):
+    """Budget-matched LR: linear warmup over WARMUP_FRAC, then cosine anneal to ~0 at frac=1."""
+    frac = min(max(frac, 0.0), 1.0)
+    if frac < WARMUP_FRAC:
+        return PEAK_LR * frac / WARMUP_FRAC
+    progress = (frac - WARMUP_FRAC) / (1.0 - WARMUP_FRAC)
+    return PEAK_LR * 0.5 * (1.0 + math.cos(math.pi * progress))
 
 
 # ---------------------------------------------------------------------------
@@ -135,15 +149,18 @@ def main():
         drop_last=True,
     )
 
-    model = ResNet(NUM_BLOCKS, NUM_CLASSES).to(device)
+    model = ResNet(NUM_BLOCKS, NUM_CLASSES).to(
+        device, memory_format=torch.channels_last
+    )
     num_params = sum(p.numel() for p in model.parameters())
     print(f"ResNet-{6 * NUM_BLOCKS + 2} | params: {num_params:,}")
 
     optimizer = optim.SGD(
-        model.parameters(), lr=LR, momentum=MOMENTUM, weight_decay=WEIGHT_DECAY
-    )
-    scheduler = optim.lr_scheduler.MultiStepLR(
-        optimizer, milestones=[32000, 48000], gamma=0.1
+        model.parameters(),
+        lr=PEAK_LR,
+        momentum=MOMENTUM,
+        weight_decay=WEIGHT_DECAY,
+        nesterov=True,
     )
     print(f"Time budget: {TIME_BUDGET_S}s")
     print(f"Batches per epoch: {len(train_loader)}")
@@ -165,15 +182,25 @@ def main():
 
         for inputs, targets in train_loader:
             t0 = time.time()
-            inputs = inputs.to(device, non_blocking=True)
+            inputs = inputs.to(
+                device, non_blocking=True, memory_format=torch.channels_last
+            )
             targets = targets.to(device, non_blocking=True)
 
+            # Budget-matched LR: drive the schedule by elapsed-time fraction so it
+            # anneals fully regardless of how many steps the throughput allows.
+            lr = lr_at_fraction(total_training_time / TIME_BUDGET_S)
+            for pg in optimizer.param_groups:
+                pg["lr"] = lr
+
             optimizer.zero_grad()
-            outputs = model(inputs)
-            loss = F.cross_entropy(outputs, targets)
+            with torch.autocast(device_type="cuda", dtype=torch.bfloat16):
+                outputs = model(inputs)
+                loss = F.cross_entropy(
+                    outputs, targets, label_smoothing=LABEL_SMOOTHING
+                )
             loss.backward()
             optimizer.step()
-            scheduler.step()
 
             torch.cuda.synchronize()
             dt = time.time() - t0
