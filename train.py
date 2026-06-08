@@ -124,7 +124,7 @@ def main():
     )  # Yes original paper only mention per-pixel mean and this is per band. See README
     train_tf = transforms.Compose(
         [
-            transforms.RandomCrop(32, padding=4),
+            transforms.RandomCrop(32, padding=4, padding_mode="reflect"),
             transforms.RandomHorizontalFlip(),
             transforms.ToTensor(),
             transforms.Normalize(mean, std),
