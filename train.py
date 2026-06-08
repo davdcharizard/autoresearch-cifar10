@@ -187,7 +187,7 @@ def main():
 
             optimizer.zero_grad()
             outputs = model(inputs)
-            loss = F.cross_entropy(outputs, targets)
+            loss = F.cross_entropy(outputs, targets, label_smoothing=0.05)
             loss.backward()
             optimizer.step()
             scheduler.step()
