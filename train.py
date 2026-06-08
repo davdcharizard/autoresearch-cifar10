@@ -22,6 +22,9 @@ LR = 0.1
 MOMENTUM = 0.9
 WEIGHT_DECAY = 1e-4
 MAX_STEPS = 64000
+USE_CUDNN_BENCHMARK = True
+USE_CHANNELS_LAST = True
+USE_COMPILE = True
 evaluator = Eval()
 
 
@@ -108,6 +111,8 @@ def main():
     torch.manual_seed(42)
     torch.cuda.manual_seed(42)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    if device.type == "cuda":
+        torch.backends.cudnn.benchmark = USE_CUDNN_BENCHMARK
     print(f"Device: {device}")
 
     mean, std = (
@@ -136,7 +141,11 @@ def main():
     )
 
     model = ResNet(NUM_BLOCKS, NUM_CLASSES).to(device)
+    if device.type == "cuda" and USE_CHANNELS_LAST:
+        model = model.to(memory_format=torch.channels_last)
     num_params = sum(p.numel() for p in model.parameters())
+    if device.type == "cuda" and USE_COMPILE:
+        model = torch.compile(model)
     print(f"ResNet-{6 * NUM_BLOCKS + 2} | params: {num_params:,}")
 
     optimizer = optim.SGD(
@@ -165,7 +174,12 @@ def main():
 
         for inputs, targets in train_loader:
             t0 = time.time()
-            inputs = inputs.to(device, non_blocking=True)
+            if device.type == "cuda" and USE_CHANNELS_LAST:
+                inputs = inputs.to(
+                    device, non_blocking=True, memory_format=torch.channels_last
+                )
+            else:
+                inputs = inputs.to(device, non_blocking=True)
             targets = targets.to(device, non_blocking=True)
 
             optimizer.zero_grad()
