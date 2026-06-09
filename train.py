@@ -163,11 +163,12 @@ def main():
             # auto-aug policy (TrivialAugment), while a clean-image mix bounds the shift.
             # Tests the strongest diverse-augmentation variant — the only lever that has ever
             # broken a plateau here (EXP-012). torchvision-native, no new dep.
-            # mixture_width=2, chain_depth=1: the lightest config that keeps AugMix's
-            # defining mechanism (mixing >=2 augmentation chains with the clean image) —
-            # default w3,d-1 (~21ms/batch) and even w2,d2 (~18ms) starve the 8-worker
-            # dataloader and breach the 600s wall limit; w2,d1 (~13ms/batch) fits (EXP-052).
-            transforms.AugMix(mixture_width=2, chain_depth=1),
+            # RandomApply(full default AugMix w3,d-1, p=0.5): the diversity lever is chain
+            # COUNT, not magnitude (EXP-053). Full w3 (3 chains) is wall-infeasible applied to
+            # every image (~21ms/batch, ~792s), so apply it to a random ~50% of images — the
+            # augmented subset gets genuine 3-chain diversity at an avg ~13ms/batch that fits
+            # the 600s wall (probed). The other ~50% get crop+flip(+GPU Cutout) only (EXP-054).
+            transforms.RandomApply([transforms.AugMix()], p=0.5),
             transforms.ToTensor(),
             transforms.Normalize(mean, std),
         ]
