@@ -157,10 +157,17 @@ def main():
         [
             transforms.RandomCrop(32, padding=4),
             transforms.RandomHorizontalFlip(),
-            # TrivialAugment (Müller & Hutter, ICCV 2021): one random op per image at a
-            # uniformly random strength — parameter-free SOTA auto-augmentation. Adds
-            # photometric+geometric invariance orthogonal to Cutout's occlusion (EXP-012).
-            transforms.TrivialAugmentWide(),
+            # AugMix (Hendrycks et al., ICLR 2020): superimposes several (default 3)
+            # independently-sampled augmentation chains, mixed with the original via random
+            # convex weights — strictly more diverse augmented samples than a single-chain
+            # auto-aug policy (TrivialAugment), while a clean-image mix bounds the shift.
+            # Tests the strongest diverse-augmentation variant — the only lever that has ever
+            # broken a plateau here (EXP-012). torchvision-native, no new dep.
+            # mixture_width=2, chain_depth=1: the lightest config that keeps AugMix's
+            # defining mechanism (mixing >=2 augmentation chains with the clean image) —
+            # default w3,d-1 (~21ms/batch) and even w2,d2 (~18ms) starve the 8-worker
+            # dataloader and breach the 600s wall limit; w2,d1 (~13ms/batch) fits (EXP-052).
+            transforms.AugMix(mixture_width=2, chain_depth=1),
             transforms.ToTensor(),
             transforms.Normalize(mean, std),
         ]
