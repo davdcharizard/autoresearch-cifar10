@@ -145,11 +145,12 @@ def main():
     train_tf = transforms.Compose(
         [
             transforms.RandomCrop(32, padding=4, padding_mode="reflect"),
-            transforms.RandomHorizontalFlip(),
+            transforms.RandomHorizontalFlip(p=0.4),
             transforms.ToTensor(),
             transforms.Normalize(mean, std),
         ]
     )
+    print("RandomHorizontalFlip p: 0.4")
 
     train_set = datasets.CIFAR10(
         DATASET_DIR, train=True, download=True, transform=train_tf
