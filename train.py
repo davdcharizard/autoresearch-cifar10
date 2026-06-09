@@ -1,4 +1,5 @@
 import gc
+import math
 import time
 
 import torch
@@ -27,7 +28,26 @@ MAX_STEPS = 64000
 USE_CUDNN_BENCHMARK = True
 USE_CHANNELS_LAST = True
 USE_COMPILE = True
+CUTMIX_ALPHA = 1.0
+CUTMIX_PROB = 0.5
+CUTMIX_LABEL_SMOOTHING = 0.05
 evaluator = Eval()
+
+
+def rand_bbox(size, lam, device):
+    _, _, height, width = size
+    cut_ratio = math.sqrt(1.0 - lam)
+    cut_w = int(width * cut_ratio)
+    cut_h = int(height * cut_ratio)
+
+    cx = torch.randint(width, (1,), device=device).item()
+    cy = torch.randint(height, (1,), device=device).item()
+
+    bbx1 = max(cx - cut_w // 2, 0)
+    bby1 = max(cy - cut_h // 2, 0)
+    bbx2 = min(cx + cut_w // 2, width)
+    bby2 = min(cy + cut_h // 2, height)
+    return bbx1, bby1, bbx2, bby2
 
 
 # ---------------------------------------------------------------------------
@@ -150,6 +170,10 @@ def main():
     if device.type == "cuda" and USE_COMPILE:
         model = torch.compile(model)
     print(f"ResNet-{6 * NUM_BLOCKS + 2} | params: {num_params:,}")
+    print(
+        f"CutMix alpha: {CUTMIX_ALPHA}, prob: {CUTMIX_PROB}, "
+        f"label smoothing: {CUTMIX_LABEL_SMOOTHING}"
+    )
 
     optimizer = optim.SGD(
         model.parameters(), lr=LR, momentum=MOMENTUM, weight_decay=WEIGHT_DECAY
@@ -157,6 +181,7 @@ def main():
     scheduler = optim.lr_scheduler.MultiStepLR(
         optimizer, milestones=LR_MILESTONES, gamma=0.1
     )
+    cutmix_dist = torch.distributions.Beta(CUTMIX_ALPHA, CUTMIX_ALPHA)
     print(f"Time budget: {TIME_BUDGET_S}s")
     print(f"Batches per epoch: {len(train_loader)}")
 
@@ -185,9 +210,33 @@ def main():
                 inputs = inputs.to(device, non_blocking=True)
             targets = targets.to(device, non_blocking=True)
 
+            apply_cutmix = torch.rand((), device=device).item() < CUTMIX_PROB
+            if apply_cutmix:
+                lam = float(cutmix_dist.sample().item())
+                batch_perm = torch.randperm(inputs.size(0), device=device)
+                targets_a = targets
+                targets_b = targets[batch_perm]
+                bbx1, bby1, bbx2, bby2 = rand_bbox(inputs.size(), lam, device)
+                mixed_inputs = inputs.clone()
+                mixed_inputs[:, :, bby1:bby2, bbx1:bbx2] = inputs[
+                    batch_perm, :, bby1:bby2, bbx1:bbx2
+                ]
+                patch_area = (bbx2 - bbx1) * (bby2 - bby1)
+                lam = 1.0 - patch_area / (inputs.size(-1) * inputs.size(-2))
+                inputs_for_model = mixed_inputs
+            else:
+                inputs_for_model = inputs
+
             optimizer.zero_grad()
-            outputs = model(inputs)
-            loss = F.cross_entropy(outputs, targets, label_smoothing=0.05)
+            outputs = model(inputs_for_model)
+            if apply_cutmix:
+                loss = lam * F.cross_entropy(
+                    outputs, targets_a, label_smoothing=CUTMIX_LABEL_SMOOTHING
+                ) + (1.0 - lam) * F.cross_entropy(
+                    outputs, targets_b, label_smoothing=CUTMIX_LABEL_SMOOTHING
+                )
+            else:
+                loss = F.cross_entropy(outputs, targets, label_smoothing=0.05)
             loss.backward()
             optimizer.step()
             scheduler.step()
