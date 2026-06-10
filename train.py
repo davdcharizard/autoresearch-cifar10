@@ -1,3 +1,4 @@
+import copy
 import gc
 import time
 
@@ -99,14 +100,26 @@ class ResNet(nn.Module):
 # ---------------------------------------------------------------------------
 
 
-def main():
+def train(seed=42, time_budget_s=TIME_BUDGET_S):
+    """Train under a fixed wall-clock training-time budget.
+
+    Returns a dict carrying the model with its BEST checkpoint weights loaded
+    (not necessarily the final epoch). The evaluation harness reloads this model
+    and recomputes the score with the read-only evaluator in prepare.py, so what
+    matters is the model you return, not anything printed here.
+
+    INTERFACE CONTRACT (the harness depends on this — keep it intact):
+      - top-level callable `train(seed, time_budget_s)`
+      - returns dict with at least {"model": nn.Module (best weights loaded),
+        "device": torch.device, "training_seconds": float}
+    """
     # ---------------------------------------------------------------------------
     # Setup
     # ---------------------------------------------------------------------------
 
     t_start = time.time()
-    torch.manual_seed(42)
-    torch.cuda.manual_seed(42)
+    torch.manual_seed(seed)
+    torch.cuda.manual_seed(seed)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Device: {device}")
 
@@ -158,8 +171,9 @@ def main():
     epoch = 0
     step = 0
     best_acc = 0.0
+    best_state = None
 
-    while total_training_time < TIME_BUDGET_S and step < MAX_STEPS:
+    while total_training_time < time_budget_s and step < MAX_STEPS:
         epoch += 1
         model.train()
 
@@ -188,9 +202,9 @@ def main():
             debiased = smooth_train_loss / (1 - ema_beta**step)
 
             lr = optimizer.param_groups[0]["lr"]
-            pct_done = 100 * total_training_time / TIME_BUDGET_S
+            pct_done = 100 * total_training_time / time_budget_s
             img_per_sec = int(BATCH_SIZE / dt)
-            remaining = max(0, TIME_BUDGET_S - total_training_time)
+            remaining = max(0, time_budget_s - total_training_time)
 
             if step % 50 == 0:
                 print(
@@ -199,13 +213,14 @@ def main():
                     flush=True,
                 )
 
-            if total_training_time >= TIME_BUDGET_S or step >= MAX_STEPS:
+            if total_training_time >= time_budget_s or step >= MAX_STEPS:
                 break
 
         test_loss, test_acc = evaluator.evaluate(model, device)
 
         if test_acc > best_acc:
             best_acc = test_acc
+            best_state = copy.deepcopy(model.state_dict())
 
         print(
             f"\n  eval ep {epoch:3d} | test_loss: {test_loss:.4f} | test_acc: {test_acc:.2f}% | best: {best_acc:.2f}%"
@@ -214,9 +229,9 @@ def main():
         if epoch == 1:
             gc.collect()
 
-    # ---------------------------------------------------------------------------
-    # Final summary
-    # ---------------------------------------------------------------------------
+    # Load the best checkpoint so the harness scores the best epoch, not the last.
+    if best_state is not None:
+        model.load_state_dict(best_state)
 
     t_end = time.time()
     startup_time = t_start_training - t_start
@@ -224,17 +239,40 @@ def main():
         torch.cuda.max_memory_allocated() / 1024 / 1024 if device.type == "cuda" else 0
     )
 
+    return {
+        "model": model,
+        "device": device,
+        "best_test_acc": best_acc,
+        "final_test_acc": test_acc,
+        "final_test_loss": test_loss,
+        "training_seconds": total_training_time,
+        "total_seconds": t_end - t_start,
+        "startup_seconds": startup_time,
+        "peak_vram_mb": peak_vram_mb,
+        "num_epochs": epoch,
+        "num_steps": step,
+        "num_params": num_params,
+    }
+
+
+def main():
+    # ---------------------------------------------------------------------------
+    # Final summary (standalone `uv run train.py` for humans; the Weco harness
+    # calls train() directly and recomputes the score itself)
+    # ---------------------------------------------------------------------------
+    r = train()
+
     print("---")
-    print(f"best_test_acc:    {best_acc:.2f}%")
-    print(f"final_test_acc:   {test_acc:.2f}%")
-    print(f"final_test_loss:  {test_loss:.4f}")
-    print(f"training_seconds: {total_training_time:.1f}")
-    print(f"total_seconds:    {t_end - t_start:.1f}")
-    print(f"startup_seconds:  {startup_time:.1f}")
-    print(f"peak_vram_mb:     {peak_vram_mb:.1f}")
-    print(f"num_epochs:       {epoch}")
-    print(f"num_steps:        {step}")
-    print(f"num_params:       {num_params:,}")
+    print(f"best_test_acc:    {r['best_test_acc']:.2f}%")
+    print(f"final_test_acc:   {r['final_test_acc']:.2f}%")
+    print(f"final_test_loss:  {r['final_test_loss']:.4f}")
+    print(f"training_seconds: {r['training_seconds']:.1f}")
+    print(f"total_seconds:    {r['total_seconds']:.1f}")
+    print(f"startup_seconds:  {r['startup_seconds']:.1f}")
+    print(f"peak_vram_mb:     {r['peak_vram_mb']:.1f}")
+    print(f"num_epochs:       {r['num_epochs']}")
+    print(f"num_steps:        {r['num_steps']}")
+    print(f"num_params:       {r['num_params']:,}")
 
 
 if __name__ == "__main__":

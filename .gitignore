@@ -220,3 +220,9 @@ __marimo__/
 
 # Codex
 .codex/
+# Weco optimization run logs (regenerable)
+.runs/
+.weco/**/run.log
+
+# CIFAR-10 dataset download
+data/
