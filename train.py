@@ -17,6 +17,7 @@ from prepare import DATASET_DIR, NUM_WORKERS, TIME_BUDGET_S, Eval
 # ---------------------------------------------------------------------------
 
 NUM_BLOCKS = 3  # ResNet-20 = 6*3+2
+WIDTH_MULT = 4  # WRN-style widening: stage widths (16,32,64) -> (64,128,256)
 NUM_CLASSES = 10
 BATCH_SIZE = 512
 PEAK_LR = 0.4  # linear scaling: 0.1 x (512/128)
@@ -70,14 +71,15 @@ class BasicBlock(nn.Module):
 
 
 class ResNet(nn.Module):
-    def __init__(self, num_blocks, num_classes=10):
+    def __init__(self, num_blocks, num_classes=10, width_mult=1):
         super().__init__()
-        self.conv1 = nn.Conv2d(3, 16, 3, stride=1, padding=1, bias=False)
-        self.bn1 = nn.BatchNorm2d(16)
-        self.layer1 = self._make_layer(16, 16, num_blocks, stride=1)
-        self.layer2 = self._make_layer(16, 32, num_blocks, stride=2)
-        self.layer3 = self._make_layer(32, 64, num_blocks, stride=2)
-        self.fc = nn.Linear(64, num_classes)
+        w1, w2, w3 = 16 * width_mult, 32 * width_mult, 64 * width_mult
+        self.conv1 = nn.Conv2d(3, w1, 3, stride=1, padding=1, bias=False)
+        self.bn1 = nn.BatchNorm2d(w1)
+        self.layer1 = self._make_layer(w1, w1, num_blocks, stride=1)
+        self.layer2 = self._make_layer(w1, w2, num_blocks, stride=2)
+        self.layer3 = self._make_layer(w2, w3, num_blocks, stride=2)
+        self.fc = nn.Linear(w3, num_classes)
         self.apply(self._weights_init)
 
     @staticmethod
@@ -151,9 +153,11 @@ def main():
         persistent_workers=True,
     )
 
-    model = ResNet(NUM_BLOCKS, NUM_CLASSES).to(device, memory_format=torch.channels_last)
+    model = ResNet(NUM_BLOCKS, NUM_CLASSES, WIDTH_MULT).to(
+        device, memory_format=torch.channels_last
+    )
     num_params = sum(p.numel() for p in model.parameters())
-    print(f"ResNet-{6 * NUM_BLOCKS + 2} | params: {num_params:,}")
+    print(f"ResNet-{6 * NUM_BLOCKS + 2} ({WIDTH_MULT}x wide) | params: {num_params:,}")
 
     # No weight decay on BN params and biases (ndim <= 1), decay on conv/linear weights
     decay_params = [p for p in model.parameters() if p.ndim > 1]
