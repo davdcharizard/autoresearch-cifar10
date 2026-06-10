@@ -144,12 +144,13 @@ def main():
     )  # Yes original paper only mention per-pixel mean and this is per band. See README
     train_tf = transforms.Compose(
         [
-            transforms.RandomCrop(32, padding=4, padding_mode="reflect"),
+            transforms.RandomCrop(32, padding=3, padding_mode="reflect"),
             transforms.RandomHorizontalFlip(p=0.4),
             transforms.ToTensor(),
             transforms.Normalize(mean, std),
         ]
     )
+    print("RandomCrop padding: 3 reflect")
     print("RandomHorizontalFlip p: 0.4")
 
     train_set = datasets.CIFAR10(
