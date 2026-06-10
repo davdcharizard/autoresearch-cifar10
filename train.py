@@ -137,6 +137,9 @@ def main():
             transforms.RandomHorizontalFlip(),
             transforms.ToTensor(),
             transforms.Normalize(mean, std),
+            transforms.RandomErasing(
+                p=0.5, scale=(0.02, 0.4), ratio=(0.3, 3.3), value="random"
+            ),
         ]
     )
 
