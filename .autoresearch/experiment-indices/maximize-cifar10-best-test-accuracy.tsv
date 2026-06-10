@@ -1,0 +1,97 @@
+# metric: best_test_acc | unit: % | direction: higher | baseline: 94.51 | baseline_commit: 83d4e94
+# goal: goals/maximize-cifar10-best-test-accuracy.md
+exp_id	commit	metric	verdict	description	key_learning
+BASE	869b7a7	91.52	improvement	Initial baseline	Baseline establishment
+000	869b7a7	90.45	no-improvement	Cutout, label smoothing, Nesterov, cosine LR on ResNet-20	This combined regularization schedule slowed convergence enough that peak accuracy stayed below baseline.
+001	869b7a7	91.48	no-improvement	Throughput flags: channels-last, BF16 autocast, torch.compile	Throughput rose to 39558 steps, but BF16/compile recipe landed just below baseline at 91.48%.
+002	6743174	91.95	improvement	FP32 throughput: channels-last, cuDNN benchmark, torch.compile	FP32 compile/channels-last reached 43398 steps and improved best accuracy to 91.95%.
+003	6743174	91.85	no-improvement	Move second LR milestone from 48000 to 40000	Earlier second LR drop reached 0.001 but reduced peak accuracy below the 91.95 baseline.
+004	6743174	91.98	no-improvement	EMA evaluation weights on FP32 throughput ResNet-20	EMA reached 91.98%, a tiny +0.03 point gain, but update overhead cut steps enough to miss the +0.10 threshold.
+005	6743174	91.72	no-improvement	Isolated 16x16 cutout on FP32 throughput ResNet-20	Isolated 16x16 cutout preserved steps but delayed convergence and peaked at 91.72%, below the tightened 92.05% bar.
+006	6743174	88.18	no-improvement	Schedule-calibrated ResNet-32 capacity increase	ResNet-32 was too slow for the planned schedule, reached only 23642 steps, and never hit the first LR drop.
+007	6743174	91.39	no-improvement	Enable TF32 on FP32 throughput ResNet-20	TF32 removed the warning but reduced step budget to 37922 and peaked at 91.39%, below the 92.05% threshold.
+008	6743174	91.65	no-improvement	Move first LR milestone to 30000 and disable second drop	Earlier first drop gave 46331 steps and no LR 0.001 phase, but peaked at 91.65%, below the 92.05% threshold.
+009	6743174	91.87	no-improvement	Weak 8x8 cutout on FP32 throughput ResNet-20	Weak 8x8 cutout preserved throughput but still regularized enough to peak below the 92.05% threshold.
+010	6743174	91.33	no-improvement	Isolated Nesterov momentum on FP32 throughput ResNet-20	Isolated Nesterov preserved throughput but made the post-drop accuracy plateau much lower than the FP32 baseline.
+011	03cc708	92.12	improvement	ResNet-20 width 1.25x with 24k first LR drop	Modest width scaling plus an earlier first drop reached 43713 steps and lifted best accuracy to 92.12%, clearing the noise margin.
+012	03cc708	92.16	no-improvement	Move widened ResNet-20 first LR drop from 24000 to 22000	A 22k first drop gave more LR 0.01 steps but peaked at 92.16%, below the 92.22 threshold and worse than the 24k schedule.
+013	3134138	92.49	improvement	ResNet-20 width 1.5x with 24k first LR drop	A 24/48/96 ResNet-20 preserved 41,825 steps and lifted best accuracy to 92.49%, validating another width step.
+014	9b609e4	93.09	improvement	ResNet-20 width 1.75x with 22k first LR drop	A 28/56/112 ResNet-20 with a 22k first drop reached 93.09%, validating further width scaling with schedule calibration.
+015	9b609e4	92.88	no-improvement	Move 28/56/112 first LR drop from 22k to 23k	A later 23k first drop gave more steps but peaked at 92.88%, showing the 28/56/112 model prefers the 22k drop.
+016	f187edf	93.23	improvement	Move 28/56/112 first LR drop from 22k to 21k	A 21k first drop reached 93.23%, showing the 28/56/112 model benefits from slightly more LR 0.01 refinement.
+017	f187edf	93.16	no-improvement	ResNet-20 width 30/60/120 with 20k first LR drop	The 30/60/120 width step reduced the step budget to 27.4k and peaked at 93.16%, below the 28/56/112 baseline.
+018	f187edf	92.97	no-improvement	Learned projection shortcuts for 28/56/112 ResNet-20 transitions	Projection shortcuts preserved throughput but reduced accuracy to 92.97%, below the 93.23 baseline.
+019	f187edf	92.59	no-improvement	Minimal width step 29/58/116 with 19k first LR drop	The 29/58/116 step still reduced throughput and peaked at 92.59%, confirming width beyond 28/56/112 is not currently useful.
+020	f187edf	92.60	no-improvement	Final-stage-only width 28/56/128 with 20k first LR drop	Final-stage-only widening added parameters but plateaued at 92.60%, so targeted late-stage capacity did not improve the anchor.
+021	f187edf	91.85	no-improvement	Sparse post-drop weight averaging on 28/56/112	Naive post-drop equal averaging peaked early then collapsed as snapshots accumulated, so it is unsuitable without a short window or BN recalibration.
+022	f187edf	93.18	no-improvement	Move 28/56/112 first LR drop from 21k to 20k	A 20k first drop reached 93.18%, showing 21k remains the better local first-drop bracket for the 28/56/112 anchor.
+023	f187edf	92.83	no-improvement	Lower weight decay on 28/56/112 anchor	Lower weight decay underfit the current anchor, so 1e-4 remains the better regularization strength for 28/56/112.
+024	f187edf	93.13	no-improvement	Reachable second LR drop on 28/56/112 anchor	A 36k second drop improved late refinement to 93.13%, but remained below the 93.33% threshold.
+025	f187edf	93.11	no-improvement	Batch size 96 with step-budget-aware milestones	Batch size 96 slowed the run to 32996 steps, missed the planned second drop, and peaked below the 93.33% threshold.
+026	f187edf	92.90	no-improvement	Momentum 0.95 on current 28/56/112 anchor	Momentum 0.95 made post-drop refinement worse, peaking at 92.90%, so the anchor should keep classical momentum 0.9.
+027	f187edf	92.99	no-improvement	Exclude BatchNorm and bias from weight decay	Removing weight decay from BatchNorm and bias improved neither calibration nor peak accuracy, plateauing at 92.99%.
+028	f187edf	91.74	no-improvement	Zero-initialize residual branch last BatchNorm	Zero-initializing residual branch BatchNorm severely slowed useful learning under the fixed budget, plateauing at 91.74%.
+029	2928652	93.58	improvement	Reflection padding for RandomCrop	Reflection padding removed zero-border crop artifacts without overhead, lifting the anchor to 93.58%.
+030	2928652	93.33	no-improvement	Reflection anchor with 32k second LR drop	A 32k second LR drop flattened late training and peaked at 93.33%, below the reflection-padding anchor baseline.
+031	2928652	93.48	no-improvement	Symmetric padding for RandomCrop	Symmetric padding preserved throughput but peaked at 93.48%, below the reflection-padding anchor and the 93.68% improvement threshold.
+032	e736c35	93.70	improvement	Mild isolated label smoothing	Mild label smoothing preserved throughput and lifted the reflection anchor to 93.70%, clearing the +0.10 threshold.
+033	e736c35	93.79	no-improvement	Lower label smoothing to 0.03	Lower smoothing nearly cleared the bar at 93.79%, but the +0.09 gain remains noise under the +0.10 rule.
+034	e736c35	93.79	no-improvement	22k first LR drop on label-smoothed anchor	A 22k first drop matched 93.79% but stayed inside the noise band, so 21k remains the label-smoothed anchor.
+035	e736c35	93.63	no-improvement	Lower smoothing plus 22k first LR drop	Combining the two 93.79 near-misses regressed to 93.63%, so their effects are not additive.
+036	e736c35	93.43	no-improvement	Batch size 112 on label-smoothed reflection anchor	Batch size 112 preserved the first LR drop but cut useful coverage to 39,859 steps and plateaued at 93.43%.
+037	e736c35	93.73	no-improvement	Raise label smoothing to 0.08	Stronger smoothing reached 93.73%, a small lift over baseline but still inside the +0.10 noise band.
+038	755be2c	93.97	improvement	Weight decay 2e-4 on label-smoothed reflection anchor	Stronger weight decay improved the label-smoothed reflection anchor to 93.97%, showing the current wider recipe benefits from more shrinkage.
+039	755be2c	93.55	no-improvement	Weight decay 3e-4 on label-smoothed reflection anchor	Weight decay 3e-4 over-regularized the current anchor, dropping best accuracy to 93.55%; keep 2e-4 as the stronger-decay anchor.
+040	755be2c	93.70	no-improvement	Initial LR 0.12 on 2e-4 weight-decay anchor	Higher LR 0.12 added noisy high-LR training and peaked at 93.70%, so the 2e-4 anchor should keep LR 0.1.
+041	755be2c	93.61	no-improvement	Weight decay 1.5e-4 local bracket	Reducing weight decay to 1.5e-4 weakened the 2e-4 anchor, peaking at 93.61%; keep 2e-4 as the local decay setting.
+042	755be2c	NaN	crash	Mild mixup alpha 0.1	Mild mixup could not produce a valid final metric because both local attempts were interrupted before best_test_acc was reported.
+043	755be2c	93.49	no-improvement	Initial LR 0.08 on 2e-4 weight-decay anchor	Lowering initial LR to 0.08 undertrained the pre-drop phase and peaked at 93.49%, so LR 0.1 remains the anchor.
+044	755be2c	93.83	no-improvement	Mild RandAugment after crop/flip	Mild RandAugment reached 93.83% but stayed below 94.07%, adding runtime without clearing the improvement threshold.
+045	755be2c	89.07	no-improvement	Sparse late EMA after first LR drop	Sparse late EMA activated but collapsed to 89.07%, showing buffer/averaged-weight mismatch remains severe.
+046	755be2c	93.01	no-improvement	Time-budget matched cosine schedule	Elapsed-time cosine completed cleanly but plateaued at 93.01%, below the step-schedule anchor and 94.07% threshold.
+047	755be2c	88.89	no-improvement	Mild ColorJitter after crop/flip	Under GPU contention, mild ColorJitter missed the 21k LR drop and peaked at 88.89%, so this run is no-improvement but weak attribution.
+048	755be2c	93.48	no-improvement	Lower BatchNorm momentum to 0.05	Lower BatchNorm momentum smoothed eval statistics but underperformed the anchor at 93.48%, so default BN momentum remains preferable.
+049	755be2c	93.06	no-improvement	Decoupled SGD weight decay at 2e-4	Decoupled weight decay preserved throughput but weakened the 2e-4 anchor, peaking at 93.06% below the 94.07% threshold.
+050	755be2c	93.49	no-improvement	Clean mild ColorJitter retry	Clean ColorJitter reached the 21k LR drop but still peaked at 93.49%, so mild photometric augmentation remains below threshold.
+051	755be2c	93.64	no-improvement	Partial residual-branch BN scale init	bn2.weight=0.1 avoided full zero-gamma collapse but still plateaued at 93.64%, so residual identity bias remains below anchor.
+052	755be2c	93.87	no-improvement	Hybrid post-drop cosine LR tail	A smooth 0.01-to-0.002 tail preserved the first drop and reached 93.87%, but did not beat the flat-tail anchor.
+053	755be2c	93.71	no-improvement	Batch size 160 on label-smoothed reflection anchor	A larger batch preserved the first LR drop and improved coverage, but peaked at 93.71%, confirming batch-size deviations lag the 128 anchor.
+054	755be2c	93.40	no-improvement	Very mild residual stochastic depth	Training-only residual stochastic depth preserved the LR drop, but plateaued at 93.40%, making this residual regularizer weaker than the anchor.
+055	755be2c	93.85	no-improvement	Reliable mild mixup retry alpha 0.1	Mixup completed cleanly and reached the LR drop, but peaked at 93.85%, so label-space interpolation remains below the anchor.
+056	755be2c	93.68	no-improvement	Strong weight decay on weights only	Excluding BatchNorm and bias from 2e-4 decay preserved throughput but peaked at 93.68%, so global coupled decay remains better.
+057	755be2c	93.42	no-improvement	Post-drop label smoothing anneal	Turning label smoothing off after the first LR drop collapsed training loss but peaked at 93.42%, so late hard-label sharpening overfits.
+058	755be2c	93.71	no-improvement	Squeeze-and-Excitation BasicBlocks	Adding SE gates preserved the LR drop but peaked at 93.71%, so channel recalibration lags the current anchor.
+059	755be2c	93.42	no-improvement	Average-pool option-A downsample shortcut	Average-pool shortcut downsampling preserved throughput and LR timing but plateaued at 93.42%, so smoothing transition shortcuts lags strided option-A.
+060	755be2c	93.81	no-improvement	Mixup alpha 0.1 without extra label smoothing	Removing endpoint label smoothing from mild mixup still peaked at 93.81%, so the mixup mechanism remains below the 2e-4 anchor.
+061	755be2c	93.54	no-improvement	Final classifier dropout p=0.1	Head-only dropout preserved throughput and LR timing but peaked at 93.54%, so classifier feature dropout weakens the current anchor.
+062	755be2c	93.51	no-improvement	Compact ResNet-14 width 32/64/128	Shallower wider ResNet-14 reached 51,471 steps but peaked at 93.51%, so reduced depth loses too much representation despite speed.
+063	755be2c	93.26	no-improvement	Final-stage-only SE gate	Layer3-only SE preserved the LR drop but peaked at 93.26%, worse than all-block SE and the anchor, so SE is not promising here.
+064	1119ff8	94.11	improvement	Probabilistic CutMix regional mixing	Probabilistic CutMix reached 94.11%, clearing the +0.10pp threshold while beating direct mixup and Cutout variants.
+065	1119ff8	94.09	no-improvement	CutMix probability 0.25 bracket	Lowering CutMix probability to 0.25 reached 94.09%, just below the 94.11 baseline, so p=0.5 remains the CutMix anchor.
+066	1119ff8	94.11	no-improvement	CutMix probability 0.75 bracket	Raising CutMix probability to 0.75 tied the 94.11% baseline but missed the 94.21% noise-guard threshold, so p=0.5 remains best.
+067	1119ff8	94.07	no-improvement	CutMix alpha 0.5 bracket	Lowering CutMix alpha to 0.5 peaked at 94.07%, below the 94.21% threshold, so alpha=1.0 remains the best CutMix anchor.
+068	1119ff8	94.00	no-improvement	CutMix alpha 2.0 bracket	Raising CutMix alpha to 2.0 peaked at 94.00%, below the 94.21% threshold, so alpha=1.0 remains the local CutMix anchor.
+069	1119ff8	93.73	no-improvement	Post-drop CutMix probability taper	Reducing CutMix probability to 0.25 after the first LR drop peaked at 93.73%, so late CutMix tapering weakens the current anchor.
+070	1119ff8	75.03	no-improvement	Standard CIFAR channel-std normalization	Standard CIFAR channel std badly miscalibrated the CutMix anchor, peaking at 75.03%, so keep unit-std input scaling.
+071	1119ff8	93.62	no-improvement	CIFAR AutoAugment on CutMix anchor	CIFAR AutoAugment stacked with CutMix peaked at 93.62%, below baseline, so policy augmentation over-regularizes the current anchor.
+072	1119ff8	94.16	no-improvement	Fan-out Kaiming conv initialization	Fan-out Conv2d Kaiming reached 94.16%, a small +0.05pp over baseline but below the 94.21% noise guard.
+073	1119ff8	94.14	no-improvement	Short clean warmup before CutMix	A 2000-step clean warmup peaked at 94.14%, above baseline but below the 94.21% noise guard, so static CutMix remains preferable.
+074	1119ff8	94.17	no-improvement	CutMix endpoint hard labels	Hard-label CutMix endpoints reached 94.17%, above baseline but below the 94.21% noise guard, so endpoint smoothing is not the missing lever.
+075	1119ff8	93.92	no-improvement	Fan-out conv init plus hard CutMix endpoints	Combining fan-out Conv2d init with hard CutMix endpoints regressed to 93.92%, so the two near-miss signals are not additive.
+076	1119ff8	93.73	no-improvement	Classifier Xavier zero-bias init	Classifier-specific Xavier/zero-bias initialization regressed to 93.73%, so final-head logit-scale calibration is not the missing lever.
+077	1119ff8	93.99	no-improvement	Anti-aliased residual downsample	Average-pooling the learned residual downsample path reached 93.99%, so transition anti-aliasing lags the CutMix anchor.
+078	1119ff8	93.92	no-improvement	Pre-activation BasicBlock	Pre-activation blocks reached 93.92%, so post-activation topology remains better for the current CutMix anchor.
+079	1119ff8	94.09	no-improvement	Short CutMix probability ramp	A 1000-step CutMix probability ramp peaked at 94.09%, below baseline and threshold, so early probability ramping is not enough.
+080	1119ff8	94.08	no-improvement	Very short linear LR warmup	A 500-step LR warmup peaked at 94.08%, below baseline and threshold, so early optimizer warmup is not the missing stability lever.
+081	1119ff8	94.18	no-improvement	Reflection crop padding 3	Reducing reflection crop padding to 3 reached 94.18%, above baseline but below the 94.21% noise-guard threshold.
+082	e859ac5	94.36	improvement	Horizontal flip probability 0.4	Reducing horizontal flip probability to 0.4 reached 94.36%, clearing the noise guard and confirming mild spatial de-regularization helps.
+083	e859ac5	94.17	no-improvement	Horizontal flip probability 0.35	Lowering horizontal flip probability to 0.35 regressed to 94.17%, indicating 0.4 is a better local spatial augmentation anchor.
+084	e859ac5	94.05	no-improvement	Horizontal flip probability 0.45	Raising horizontal flip probability to 0.45 regressed to 94.05%, closing the local flip bracket around the 0.4 anchor.
+085	83d4e94	94.51	improvement	Crop padding 3 on flip p=0.4 anchor	Padding 3 becomes beneficial when paired with flip p=0.4, reaching 94.51% and validating a spatial de-regularization interaction.
+086	83d4e94	94.22	no-improvement	Crop padding 2 on padding-3 / flip p=0.4 anchor	Reducing reflect crop padding from 3 to 2 under flip p=0.4 under-regularized or destabilized the spatial anchor, peaking at 94.22%.
+087	83d4e94	94.34	no-improvement	Fine upper flip bracket p=0.425 under padding 3	Raising flip probability to 0.425 under padding 3 peaked at 94.34%, below the 94.51 anchor and 94.61 threshold.
+088	83d4e94	94.07	no-improvement	Weight decay 2.5e-4 on padding-3 / flip-p=0.4 anchor	Increasing weight decay to 2.5e-4 on the spatial anchor peaked at 94.07%, so stronger shrinkage does not repair the 94.51 anchor.
+089	83d4e94	94.29	no-improvement	Fine lower flip bracket p=0.375 under padding 3	Lowering flip to p=0.375 under padding 3 peaked at 94.29%, closing the lower side around the p=0.4 spatial anchor.
+090	83d4e94	94.13	no-improvement	Fine lower CutMix probability p=0.4 on spatial anchor	CutMix probability p=0.4 under the spatial anchor peaked at 94.13%, reinforcing p=0.5 as the best tested CutMix frequency.
+091	83d4e94	94.34	no-improvement	Fine lower CutMix alpha 0.75 on spatial anchor	CutMix alpha 0.75 under the spatial anchor peaked at 94.34%, reinforcing alpha 1.0 as the best tested patch-area setting.
+092	83d4e94	94.14	no-improvement	Fine lower weight decay 1.75e-4 on spatial anchor	Lowering weight decay to 1.75e-4 peaked at 94.14%, below the 94.51 anchor, so the spatial/CutMix recipe still wants 2e-4.
