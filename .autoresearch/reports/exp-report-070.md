@@ -1,0 +1,37 @@
+# Experiment Report EXP-070: Dual (avg + max) global pooling readout
+
+## Goal
+Maximize CIFAR-10 `best_test_acc` (%), higher-is-better, editing only `train.py` within Σdt=300s GPU-compute + total wall ≤ 600s (single H20). Baseline at experiment time: **96.45** (EXP-054, commit 86161d9). Bar: **96.55**.
+
+## Idea & Hypothesis
+**Chosen idea**: Replace the global-average-pooling readout (`F.adaptive_avg_pool2d`) with dual avg+max concatenated pooling — concatenate the average-pooled (mean prevalence) and max-pooled (peak/most-discriminative spatial response) global descriptors of the final layer3 feature map, widening the classifier `fc` 256→512. **Mechanism**: for a ReLU net, GAP records only the mean channel activation and discards the peak, which max-pooling preserves; the two are complementary (the CBAM rationale), so the concatenation gives the linear classifier a richer global descriptor at ~zero FLOP cost (dt-neutral → preserves the epoch-saturated ~91-epoch budget that every prior capacity add sacrificed). It was argued to be distinct from the failed head changes (EXP-032 multi-scale, EXP-039 cosine) because it keeps the SAME tuned layer3 features and standard linear logits, changing only the spatial-aggregation statistic.
+
+**Hypothesis**: Giving the classifier both the average AND the peak global response per channel raises best_test_acc to ≥ 96.55 at an unchanged ~91-epoch/8ms budget. Stated most-likely alternative: a within-noise null (head changes lean negative; max-pool noisy on 8×8 maps).
+
+## Approach
+Two edits to `ResNet` in train.py: (1) `self.fc = nn.Linear(w3, num_classes)` → `nn.Linear(2 * w3, num_classes)`; (2) `forward`: replaced `adaptive_avg_pool2d` + `view` with `a = adaptive_avg_pool2d(out,1).flatten(1)`, `m = adaptive_max_pool2d(out,1).flatten(1)`, `out = cat([a,m],1)`, `fc(out)`. All else byte-identical to EXP-054. Pre-launch smoke confirmed: AST OK, forward (2,3,32,32)→(2,10), num_params **4,302,426** (= 4,299,866 + w3·10 = +2,560, exactly as planned), diff = train.py only. No deviations.
+
+## Execution
+Single clean run on idle GPU 1 (GPU 0 also idle, uncontended), exit 0, no retries, 0 NaN/error. dt steady 8ms (572 of 675 sampled steps; 99×9ms, 2×10-11ms) → the added `adaptive_max_pool2d` did NOT break the reduce-overhead CUDA graph (static-shape op, as planned). 87 epochs, training_seconds 300.0, total_seconds 585.1 < 600 (clean, no wall breach). **At the early gate (ep1, step ~350) the loss was pinned at ~2.306 (≈ln10, random); I judged this benign high-LR thrash — it was in fact the first sign of a real training instability.**
+
+## Results
+**best_test_acc 87.00% (−9.45pp vs baseline 96.45) — a SEVERE regression**, the largest single-change drop in the post-EXP-054 plateau by an order of magnitude (vs the typical −0.2 to −0.6pp). The eval trajectory is diagnostic: test_acc was **stuck at random** (9.99% ep1 → 10.11% ep2 → 10.24% ep3) — the model did not learn AT ALL during the high-LR phase — then escaped late and climbed to 87% by ep85, never recovering the lost early epochs (final_test_loss 0.4449 ≫ EXP-054's 0.1968). The hypothesis was **falsified, and the "dt-neutral so safe" framing was wrong**: dt-neutrality protected the epoch budget but not the OPTIMIZATION. Root cause: the max-pooled descriptor consists of the PEAK ReLU activations per channel, which are substantially larger in magnitude than the avg-pooled values; concatenating them un-normalized and feeding a Kaiming-init `fc` inflates the logit/gradient scale during the peak-LR-0.2 phase (made worse because the compile-on-first-step consumes the warmup window, so the model hits peak LR almost immediately). The model is knocked to — and trapped at — the random-guess fixed point for several epochs before it can escape; the ~3 dead epochs plus a worse basin cost ~9.5pp it cannot recover in the 87-epoch budget.
+
+**Trajectory fit**: this is the 16th consecutive no-improvement since EXP-054 and the most informative recent failure. It establishes that the pooling/readout is NOT a "free" lever even when FLOP-/dt-neutral — it perturbs the finely-balanced high-LR optimization. Joins EXP-032 (multi-scale head) and EXP-039 (cosine head) to CLOSE the classifier-head/readout axis from a third angle (spatial-aggregation statistic). Reinforces the High-importance project verdict that the EXP-054 recipe is a finely-tuned, brittle operating point at the k=4/300s ceiling.
+
+## Verification
+- **Necessary condition 1 — `best_test_acc >= 96.55`**: 87.00 < 96.55. **FAILED decisively** (−9.45pp). (Stop at first failed condition.)
+- **Necessary condition 2 — clean completion within budget**: total_seconds 585.1 < 600 ✓, training_seconds 300.0 ✓, num_params 4,302,426 (expected +2,560) ✓, 87 ep, 0 NaN/error ✓.
+- **Necessary condition 3 — no hard-constraint violation**: train.py only ✓; no new deps ✓; seed 42 ✓; evaluate() once/epoch ✓; uncontended (dt 8ms) ✓. The +2,560 param change is an allowed architecture edit, not a violation.
+
+**Verdict: no-improvement.** Clean valid run (Σdt=300s respected, wall 585.1 < 600, dt 8ms / no graph break, train.py only) that decisively missed the bar. Results trustworthy — 87% is a real, reproducible regression (the stuck-at-random eval trajectory is the optimization failure itself, not a parsing/eval artifact). NOT invalid (legitimate architecture change, no constraint breach) and NOT crash (produced a real, interpretable metric).
+
+## Unexplored Avenues
+- **Dual pooling WITH a normalization/scale fix**: a BatchNorm1d or LayerNorm on the concatenated descriptor before fc, or scaling the max-pool half down (e.g., ×0.5), or zero-init the fc — any of these would tame the logit-inflation that caused the instability. Could in principle recover the intended complementary-statistic benefit. BUT: (a) it is now a multi-change experiment confounding the readout with a stabilizer; (b) even if stabilized, head changes have leaned null-to-negative here (EXP-032/039), so the upside ceiling is low; (c) it adds the max-pool noise concern on 8×8 maps. Low priority.
+- **Max-only or GeM (learnable-p generalized-mean) pooling**: replace (not concatenate) avg with max, or use GeM (p interpolates avg↔max). Avoids the dual-magnitude concat issue but max-only typically underperforms avg for classification, and GeM adds a learnable scalar + pow (cudagraph risk). Low confidence.
+- **The classifier-head/readout axis is now closed from three angles** — feature-hierarchy (EXP-032), logit-geometry (EXP-039), spatial-aggregation-statistic (EXP-070). Do not propose further head/readout/pooling changes without a stabilizer AND a stronger mechanism than "complementary statistic."
+
+## Next Steps
+1. **Accept 96.45 as the k=4/300s ceiling** (high confidence) — 16 consecutive misses; every axis (architecture incl. now the readout, optimizer, schedule, normalization, weight-averaging, regularizers, batch, capacity, ALL augmentation sub-levers) is closed. Remaining feasible probes are plateau-mapping. project-insights High states this verbatim.
+2. **SGD momentum coefficient 0.9→0.95** (low confidence) — the one untested optimizer scalar; trivial, wall-safe, dt-neutral, and OPTIMIZATION-stable (unlike EXP-070); near-certain null but a clean axis-closer that cannot destabilize training. The safest remaining untested knob.
+3. **BN eps 1e-5→1e-3** (low confidence) — last trivial wall-safe untested static knob; near-certain exact null but completes the BN-estimator axis (cf. BN-momentum EXP-067).
