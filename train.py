@@ -160,6 +160,8 @@ def main():
     model = ResNet(NUM_BLOCKS, NUM_CLASSES, WIDTH_MULT).to(
         device, memory_format=torch.channels_last
     )
+    base_model = model  # eager reference: eval runs uncompiled, weights shared
+    model = torch.compile(model)
     num_params = sum(p.numel() for p in model.parameters())
     print(f"ResNet-{6 * NUM_BLOCKS + 2} ({WIDTH_MULT}x wide) | params: {num_params:,}")
 
@@ -177,6 +179,23 @@ def main():
     )
     print(f"Time budget: {TIME_BUDGET_S}s")
     print(f"Batches per epoch: {len(train_loader)}")
+
+    # Compile warmup: one-time inductor compilation must land in startup, not
+    # in the per-step timed budget. No optimizer.step() -> weights unchanged.
+    warm_x = torch.randn(BATCH_SIZE, 3, 32, 32, device=device).to(
+        memory_format=torch.channels_last
+    )
+    warm_y = torch.randint(0, NUM_CLASSES, (BATCH_SIZE,), device=device)
+    model.train()
+    for _ in range(3):
+        with torch.autocast("cuda", dtype=torch.bfloat16):
+            warm_loss = F.cross_entropy(
+                model(warm_x), warm_y, label_smoothing=LABEL_SMOOTHING
+            )
+        warm_loss.backward()
+    optimizer.zero_grad(set_to_none=True)
+    torch.cuda.synchronize()
+    del warm_x, warm_y, warm_loss
 
     # ---------------------------------------------------------------------------
     # Training loop (time-budgeted)
@@ -241,7 +260,7 @@ def main():
             if total_training_time >= TIME_BUDGET_S or step >= MAX_STEPS:
                 break
 
-        test_loss, test_acc = evaluator.evaluate(model, device)
+        test_loss, test_acc = evaluator.evaluate(base_model, device)
 
         if test_acc > best_acc:
             best_acc = test_acc
