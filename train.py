@@ -1,4 +1,5 @@
 import gc
+import math
 import time
 
 import torch
@@ -17,12 +18,23 @@ from prepare import DATASET_DIR, NUM_WORKERS, TIME_BUDGET_S, Eval
 
 NUM_BLOCKS = 3  # ResNet-20 = 6*3+2
 NUM_CLASSES = 10
-BATCH_SIZE = 128
-LR = 0.1
+BATCH_SIZE = 512
+PEAK_LR = 0.4  # linear scaling: 0.1 x (512/128)
+WARMUP_FRAC = 0.15  # fraction of time budget spent on linear LR warmup
 MOMENTUM = 0.9
-WEIGHT_DECAY = 1e-4
-MAX_STEPS = 64000
+WEIGHT_DECAY = 5e-4  # applied to conv/linear weights only, not BN/bias
+LABEL_SMOOTHING = 0.1
+MAX_STEPS = 1_000_000  # non-binding; the time budget governs run length
 evaluator = Eval()
+
+
+def lr_at(progress):
+    # One-cycle keyed to elapsed-budget-fraction so the anneal always completes:
+    # linear warmup to PEAK_LR over the first WARMUP_FRAC, then cosine to ~0.
+    if progress < WARMUP_FRAC:
+        return PEAK_LR * progress / WARMUP_FRAC
+    q = (progress - WARMUP_FRAC) / (1 - WARMUP_FRAC)
+    return PEAK_LR * 0.5 * (1 + math.cos(math.pi * q))
 
 
 # ---------------------------------------------------------------------------
@@ -110,6 +122,9 @@ def main():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Device: {device}")
 
+    torch.set_float32_matmul_precision("high")  # TF32 matmuls
+    torch.backends.cudnn.benchmark = True
+
     mean, std = (
         (0.4914, 0.4822, 0.4465),
         (1, 1, 1),
@@ -133,17 +148,24 @@ def main():
         num_workers=NUM_WORKERS,
         pin_memory=True,
         drop_last=True,
+        persistent_workers=True,
     )
 
-    model = ResNet(NUM_BLOCKS, NUM_CLASSES).to(device)
+    model = ResNet(NUM_BLOCKS, NUM_CLASSES).to(device, memory_format=torch.channels_last)
     num_params = sum(p.numel() for p in model.parameters())
     print(f"ResNet-{6 * NUM_BLOCKS + 2} | params: {num_params:,}")
 
+    # No weight decay on BN params and biases (ndim <= 1), decay on conv/linear weights
+    decay_params = [p for p in model.parameters() if p.ndim > 1]
+    no_decay_params = [p for p in model.parameters() if p.ndim <= 1]
     optimizer = optim.SGD(
-        model.parameters(), lr=LR, momentum=MOMENTUM, weight_decay=WEIGHT_DECAY
-    )
-    scheduler = optim.lr_scheduler.MultiStepLR(
-        optimizer, milestones=[32000, 48000], gamma=0.1
+        [
+            {"params": decay_params, "weight_decay": WEIGHT_DECAY},
+            {"params": no_decay_params, "weight_decay": 0.0},
+        ],
+        lr=0.0,  # set per-step by lr_at()
+        momentum=MOMENTUM,
+        nesterov=True,
     )
     print(f"Time budget: {TIME_BUDGET_S}s")
     print(f"Batches per epoch: {len(train_loader)}")
@@ -165,15 +187,24 @@ def main():
 
         for inputs, targets in train_loader:
             t0 = time.time()
-            inputs = inputs.to(device, non_blocking=True)
+            inputs = inputs.to(device, non_blocking=True).to(
+                memory_format=torch.channels_last
+            )
             targets = targets.to(device, non_blocking=True)
 
-            optimizer.zero_grad()
-            outputs = model(inputs)
-            loss = F.cross_entropy(outputs, targets)
+            progress = min(total_training_time / TIME_BUDGET_S, 1.0)
+            lr_now = lr_at(progress)
+            for g in optimizer.param_groups:
+                g["lr"] = lr_now
+
+            optimizer.zero_grad(set_to_none=True)
+            with torch.autocast("cuda", dtype=torch.bfloat16):
+                outputs = model(inputs)
+                loss = F.cross_entropy(
+                    outputs, targets, label_smoothing=LABEL_SMOOTHING
+                )
             loss.backward()
             optimizer.step()
-            scheduler.step()
 
             torch.cuda.synchronize()
             dt = time.time() - t0
