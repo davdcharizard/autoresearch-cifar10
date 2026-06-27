@@ -1,0 +1,13 @@
+{
+  "type": "step_code_snapshot",
+  "created_at": "2026-06-11T10:06:49.091316",
+  "file_count": 1,
+  "files": [
+    {
+      "path": "train.py",
+      "artifact_path": "train.py",
+      "bytes": 14351
+    }
+  ],
+  "step": 50
+}

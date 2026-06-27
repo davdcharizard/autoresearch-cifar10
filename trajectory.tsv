@@ -1,0 +1,71 @@
+step	best_test_acc	running_best	node_id	summary
+0	91.61	91.61	eb1eae3e-827b-46c2-853d-08c48e2ef4c4	Measured the ResNet-20 baseline.
+1	80.16	91.61	af2046ca-5ac8-430d-a76c-65c6cd140ee4	Tried a wider WRN-16-4 with CutMix, cosine LR, label smoothing and higher LR/batch. A large departure from baseline that regressed sharply.
+2	92.3	92.3	ebea8fde-1c17-4993-935c-942089ef79b5	Deepened to ResNet-56 with Cutout, Nesterov and cosine warm restarts, staying close to baseline. Modest gain.
+3	94.21	94.21	a7da1b71-b60d-4378-9e2b-287549e59e6b	Switched architecture family to PreActResNet-18 with AutoAugment+Cutout and OneCycleLR at batch 256. First big jump.
+4	94.31	94.31	c1fedd24-5b3a-4cbd-aefa-53ec2162ecf3	Tried a wide WRN-16-8 with Cutout, a single cosine cycle and torch.compile (no CutMix/label smoothing). Slightly above prior.
+5	93.88	94.31	3b632683-144a-4608-b535-f3503f9e2efc	Kept PreActResNet-18 but added CutMix+Mixup switching, SWA and OneCycleLR. Regressed.
+6	91.38	94.31	c7793efd-ba19-4e64-a6a5-df9160d6a624	Tried a DenseNet-BC architecture with TTA, Cutout, cosine LR and EMA weights. Regressed.
+7	94.51	94.51	a7eb3445-cc8a-4149-9f8d-3e0db812fff3	PreActResNet-18 with a single cosine cycle, flip-TTA, gradient clipping and batch 256. New best at the time.
+8	93.82	94.51	3426b233-30bf-49ab-ac33-21bddb77b7b5	PreActResNet-18 with OneCycleLR super-convergence at batch 512 and EMA weights. Regressed.
+9	90.34	94.51	7fdf9d9f-3c04-4a1f-ba63-b8e9cbeff3a3	PreActResNet-18 with AutoAugment, progressive resizing (24->32) and EMA. Regressed.
+10	93.92	94.51	b0f6f1f6-ddef-4e55-a5b3-58d088356beb	PreActResNet-18 with TrivialAugmentWide and a conservative warmup+cosine schedule. Modest.
+11	95.69	95.69	fa29adc7-eb6a-44d4-a0f0-c32f44a69694	Switched to ResNeXt-29 (grouped convolutions) with Cutout, conservative cosine and Nesterov. Jumped to 95.7%.
+12	95.94	95.94	b8237f45-119c-4ab6-8c43-422f7c799b9d	Added flip-based TTA to the PreActResNet-18 recipe plus a higher initial LR. New best.
+13	96.03	96.03	c11ff6c0-70d1-4d7f-8d9b-46605e8eda98	Added Mixup (alpha=0.2) on top of Cutout+TTA. New best (96.03%).
+14	95.88	96.03	c02fe947-2154-4e99-8dfa-ce9fca43b4cb	Added CutMix alongside Mixup (50/50 per batch). Slight regression.
+15	95.83	96.03	0cd2123c-ee29-4850-ac9d-7ee151898451	Lowered Mixup alpha to 0.1, added RandomErasing, higher LR and shorter Cutout. Regressed.
+16	96.21	96.21	ce6fc82b-4cbc-4868-ad3c-d0fc18205645	Added label smoothing (0.1) to the loss on the proven recipe. Overall winner (96.21%).
+17	95.46	96.21	fa198ac2-f0fa-4313-8390-474e5ea6c209	Increased weight decay from 5e-4 to 1e-3. Regressed.
+18	95.74	96.21	0605ede2-c2d3-4dd8-9925-bc003c2f764d	Added Stochastic Depth (drop-path 0->0.1) regularization. Slight regression.
+19	95.78	96.21	e509b519-4b2f-49eb-8f6d-b3c68080d020	Added AutoAugment (CIFAR-10 policy) to the augmentation pipeline. Regressed.
+20	95.4	96.21	b3ee35ac-12ea-48f3-9dd1-fdc8b62570de	Widened PreActResNet-18 by 1.25x (more channels). Regressed.
+22	96.11	96.21	e6f41a2e-6f6c-4ce1-a084-966cdbebacd7	Increased batch size to 256 with scaled LR 0.2 and longer warmup. Just below best.
+23	95.9	96.21	6eef2b63-8655-4e16-a962-e2714792e496	Added an EMA model (decay 0.999) evaluated alongside the live model. Slight regression.
+24	96.03	96.21	9f679fa5-cf5c-40aa-86d5-73049e2ce38a	Bugfix: skip integer BatchNorm buffers in the EMA update (the dtype crash). Recovered to 96.03%.
+25	95.9	96.21	21cbce1e-e13c-4355-ab98-9bcffb7a34c0	Added 10-crop TTA (center+corners+flips) and raised Mixup alpha to 0.3. Slight regression.
+26	95.61	96.21	64272631-bffc-4b19-8b6f-12fd10727664	Added Squeeze-and-Excitation attention blocks to PreActResNet-18. Regressed.
+27	95.43	96.21	9d5addf9-b8bd-4e2d-89d3-a77b2690d763	Added TrivialAugmentWide as a lighter alternative to AutoAugment. Regressed.
+28	95.93	96.21	6bbdc4a5-7dd8-4b3b-ac9c-99d1504a7503	Tightened the cosine schedule (85% margin, longer warmup, lower initial LR 0.08). Slight regression.
+29	95.79	96.21	b7001a0f-a109-40cf-ab8f-d00d5067d64b	Raised LR to 0.15 with a longer warmup, keeping everything else at the winner. Slight regression.
+30	95.68	96.21	f54f111e-a7dc-444f-b2f1-5d3018240659	Switched to CosineAnnealingWarmRestarts (2-3 restarts within budget). Regressed.
+31	95.86	96.21	e2dda8a3-c58c-4efe-b9a8-b56c02c0e9e9	Added automatic mixed precision (float16) to fit more epochs. Slight regression.
+32	94.93	96.21	962db78e-ba00-4585-ba90-0f017afd1606	Deepened to PreActResNet-34 with batch 192 to offset the slowdown. Regressed.
+33	79.45	96.21	fec92c6d-17b5-413b-bb30-a5c6689cead3	Switched to 'correct' CIFAR-10 normalization std instead of (1,1,1). Crashed accuracy (79.5%).
+34	94.66	96.21	8b212390-ebd1-479b-8b44-40784f24bfba	Loosened the cosine schedule safety margin to 95%. Regressed.
+35	94.56	96.21	41041984-2bec-4fa5-98fd-9d4f5c09792c	Reduced label smoothing from 0.1 to 0.05. Regressed.
+36	94.71	96.21	3cf3f057-20d1-4fb2-96b3-cc6cd424f855	Increased Mixup alpha to 0.4 (stronger interpolation). Regressed.
+37	95.35	96.21	695dfc60-3629-454d-a433-2da60a39509c	Added bfloat16 mixed precision and full-epoch timing to fit more epochs. Regressed.
+38	94.13	96.21	ef3145b7-9c31-4fe1-ab83-1ead46f26d50	Switched optimizer to AdamW (lr 1e-3, wd 0.05). Regressed.
+39	94.64	96.21	1818c5b4-b1f0-4d88-97d3-b32f5157416c	Set Mixup alpha to 0.3 with full-epoch timing. Regressed.
+40	94.82	96.21	0995a183-329a-4f25-a557-1387966c3ef9	Used heavier 10-crop TTA for the final model only. Regressed.
+41	95.03	96.21	2c60867f-5a65-42d5-9ed3-ec6372055500	Timed a full epoch for calibration and decayed cosine to a small non-zero min LR. Regressed.
+42	95.75	96.21	b0cf8afd-ea86-4124-85d6-b9eea8bd07a7	Re-added EMA (decay 0.9995, every 5 steps, integer buffers handled). Just below best.
+43	95.93	96.21	fc044419-f9e5-4eec-8f6f-55d271cd1f1a	Added Dropout (p=0.1) before the final linear layer. Slight regression.
+44	96.17	96.21	b1c59c85-e7a6-403d-9830-850675a0cd7c	Improved step-time estimation (15 timing steps, 88% margin) for better schedule calibration. Near-best (96.17%).
+45	95.93	96.21	79d5a770-e565-4e8b-be8d-604dd4d57182	Used gradient accumulation over 2 batches (effective batch 256) with full-epoch timing. Slight regression.
+46	95.98	96.21	8c5c1269-ec99-4f61-8bf2-d53a1ec81856	Switched to LinearLR warmup + CosineAnnealingLR via SequentialLR and raised label smoothing to 0.15. Slight regression.
+47	95.95	96.21	1dff627d-5c11-4e0b-afc4-c9ba8c6bf14e	Swapped custom Cutout for torchvision RandomErasing (random fill). Slight regression.
+48	96.19	96.21	67c4b321-3074-473f-af63-c748276932e4	Added random crop-padding (2-6 instead of fixed 4) for scale diversity. Near-best (96.19%).
+49	96.12	96.21	af85442a-f593-495c-b80f-9fb3f534ad2b	Enabled channels-last memory format to speed up convolutions. Just below best.
+50	95.72	96.21	fa243983-76c8-43fd-8d23-ee3f1758b8fe	Calibrated the cosine schedule by timing a full epoch instead of 5 steps. Slight regression.
+51	95.93	96.21	6f48b93d-e107-4769-832a-b4dfaeefec35	Built a snapshot ensemble averaging the last 5 low-LR epoch checkpoints. Slight regression.
+52	95.98	96.21	4837af11-2505-4e59-ab8a-71a80ce8047e	Skipped the post-warmup model reset (no wasted steps) and used compile mode reduce-overhead. Slight regression.
+53	96.05	96.21	bf20d7c5-2847-4837-90a7-902ebcc47c5f	Reduced Cutout length from 16 to 12. Slight regression.
+54	95.55	96.21	d56ffb66-d7a6-4e69-9643-74272f773f2f	Increased Cutout length to 20. Regressed.
+55	96.1	96.21	46d12f62-69c4-4a53-b35b-65fb4fb980df	Lowered weight decay to 3e-4. Near-best (96.10%).
+56	96.01	96.21	3d3372ee-b012-4889-8221-091347bcd678	Lowered weight decay to 2e-4 with more warmup/timing steps. Slight regression.
+57	96.01	96.21	c4cdc1d8-9d99-4db4-aeb3-50a89b2d8ae6	'Best of 2': two independent half-budget runs, returning the better one. Slight regression.
+58	94.63	96.21	68fcf09b-c386-4fe1-922f-d435afbea599	Two independent ~45%-budget runs, returning the better (variance reduction). Regressed.
+59	95.89	96.21	d8b8edde-5ca9-48ef-aa5a-9cf2228aae24	Reliability pass: more robust timing, no model reset, warmup steps counted in the schedule. Slight regression.
+60	95.42	96.21	0e34fef4-0114-44ba-8ead-7dc394638e7f	Raised LR to 0.2 with a longer 750-step warmup. Regressed.
+61	96.08	96.21	e40b793a-c2be-42e5-af76-56662da479bf	Set Mixup alpha to 0.15 (between 0.1 and 0.2). Just below best.
+62	95.94	96.21	db5b1ecd-9b67-4059-9e6a-c17159d0b9c0	Mixup annealing: Mixup for the first 80% of training, clean data for the last 20%. Slight regression.
+63	95.99	96.21	31f35467-8577-47d3-98d8-18edceae643f	Used compile mode reduce-overhead with outlier-trimmed step timing. Slight regression.
+64	95.97	96.21	138c8ce5-fdcc-435a-afdb-a0148bb449ae	Subtracted measured eval time from the budget and applied Mixup with 50% per-batch probability. Slight regression.
+65	96.06	96.21	a6b283af-24de-4aa5-8999-f175e40ff703	Used reflect padding in RandomCrop instead of zero padding. Just below best.
+66	95.85	96.21	28e4a622-a24c-4d97-9858-98c9aea96cfd	Annealed label smoothing from 0.1 down to 0.0 over training. Slight regression.
+67	95.88	96.21	89c9f4a9-6dd2-47d0-b0da-54b8f7a60db4	Increased Cutout length to 18 with more frequent late-training evaluation. Slight regression.
+68	95.62	96.21	e450b2d2-8fb0-4e2b-abb7-c36668b72170	Deepened slightly to PreActResNet [3,3,3,3] blocks. Regressed.
+69	96.0	96.21	1e42cef6-d34d-482c-956d-2f44e361b5d2	Added a BN layer after the 1x1 downsampling shortcut conv. Just below best (96.0%).
+70	94.86	96.21	9df65f37-e166-4874-809b-b046a0b214c5	Raised SGD momentum to 0.95. Regressed.

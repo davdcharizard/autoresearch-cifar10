@@ -1,0 +1,23 @@
+Device: cuda
+PreActResNet-18 | params: 11,172,170
+Model compiled successfully
+Estimating step time...
+Avg step time: 10.4ms
+Estimated total steps: 25956, epochs: 66.6
+Time budget: 300s
+Batches per epoch: 390
+Traceback (most recent call last):
+  File "/SPXvePFS/users/david/autoresearch-benchmarks/autoresearch-cifar10/runs/baseline-weco/.weco/cifar10/evaluate.py", line 113, in <module>
+    main()
+    ~~~~^^
+  File "/SPXvePFS/users/david/autoresearch-benchmarks/autoresearch-cifar10/runs/baseline-weco/.weco/cifar10/evaluate.py", line 78, in main
+    result = candidate.train(seed=SEED, time_budget_s=TIME_BUDGET_S)
+  File "/SPXvePFS/users/david/autoresearch-benchmarks/autoresearch-cifar10/runs/baseline-weco/train.py", line 388, in train
+    ema.update(model_raw)
+    ~~~~~~~~~~^^^^^^^^^^^
+  File "/SPXvePFS/users/david/autoresearch-benchmarks/autoresearch-cifar10/runs/baseline-weco/.venv/lib/python3.13/site-packages/torch/utils/_contextlib.py", line 120, in decorate_context
+    return func(*args, **kwargs)
+  File "/SPXvePFS/users/david/autoresearch-benchmarks/autoresearch-cifar10/runs/baseline-weco/train.py", line 176, in update
+    self.shadow_buffers[name].mul_(self.decay).add_(buf.data, alpha=1 - self.decay)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^
+RuntimeError: result type Float can't be cast to the desired output type Long

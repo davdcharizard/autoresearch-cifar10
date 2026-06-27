@@ -1,0 +1,427 @@
+Device: cuda
+PreActResNet-18 | params: 11,172,170
+Model compiled successfully
+Estimating step time...
+Avg step time: 10.5ms
+Estimated total steps: 23534, epochs: 60.3
+Time budget: 300s
+Batches per epoch: 390
+
+step 00100 ep 1 (0.4%) | loss: 2.0274 | lr: 0.02020 | rem: 299s    
+step 00200 ep 1 (0.8%) | loss: 1.9332 | lr: 0.04020 | rem: 298s    
+step 00300 ep 1 (1.1%) | loss: 1.8503 | lr: 0.06020 | rem: 297s    
+  eval ep   1 | test_loss: 1.3994 | test_acc: 51.51% | best: 51.51%
+
+step 00400 ep 2 (1.5%) | loss: 1.7632 | lr: 0.08020 | rem: 295s    
+step 00500 ep 2 (1.9%) | loss: 1.6553 | lr: 0.10000 | rem: 294s    
+step 00600 ep 2 (2.2%) | loss: 1.6406 | lr: 0.10000 | rem: 293s    
+step 00700 ep 2 (2.6%) | loss: 1.5854 | lr: 0.09998 | rem: 292s    
+  eval ep   2 | test_loss: 1.1034 | test_acc: 60.77% | best: 60.77%
+
+step 00800 ep 3 (3.0%) | loss: 1.5064 | lr: 0.09996 | rem: 291s    
+step 00900 ep 3 (3.3%) | loss: 1.4938 | lr: 0.09993 | rem: 290s    
+step 01000 ep 3 (3.7%) | loss: 1.4376 | lr: 0.09988 | rem: 289s    
+step 01100 ep 3 (4.1%) | loss: 1.3952 | lr: 0.09983 | rem: 288s    
+  eval ep   3 | test_loss: 0.8606 | test_acc: 73.89% | best: 73.89%
+
+step 01200 ep 4 (4.4%) | loss: 1.4336 | lr: 0.09977 | rem: 287s    
+step 01300 ep 4 (4.8%) | loss: 1.4255 | lr: 0.09970 | rem: 286s    
+step 01400 ep 4 (5.2%) | loss: 1.3264 | lr: 0.09962 | rem: 285s    
+step 01500 ep 4 (5.5%) | loss: 1.4215 | lr: 0.09954 | rem: 283s    
+  eval ep   4 | test_loss: 0.7760 | test_acc: 76.42% | best: 76.42%
+
+step 01600 ep 5 (5.9%) | loss: 1.4349 | lr: 0.09944 | rem: 282s    
+step 01700 ep 5 (6.2%) | loss: 1.2992 | lr: 0.09933 | rem: 281s    
+step 01800 ep 5 (6.6%) | loss: 1.3246 | lr: 0.09922 | rem: 280s    
+step 01900 ep 5 (7.0%) | loss: 1.2935 | lr: 0.09909 | rem: 279s    
+  eval ep   5 | test_loss: 0.9170 | test_acc: 71.10% | best: 76.42%
+
+step 02000 ep 6 (7.3%) | loss: 1.3185 | lr: 0.09896 | rem: 278s    
+step 02100 ep 6 (7.7%) | loss: 1.2975 | lr: 0.09881 | rem: 277s    
+step 02200 ep 6 (8.1%) | loss: 1.2809 | lr: 0.09866 | rem: 276s    
+step 02300 ep 6 (8.4%) | loss: 1.3306 | lr: 0.09850 | rem: 275s    
+  eval ep   6 | test_loss: 0.6393 | test_acc: 79.76% | best: 79.76%
+
+step 02400 ep 7 (8.8%) | loss: 1.3303 | lr: 0.09833 | rem: 274s    
+step 02500 ep 7 (9.2%) | loss: 1.2017 | lr: 0.09815 | rem: 273s    
+step 02600 ep 7 (9.5%) | loss: 1.2217 | lr: 0.09796 | rem: 271s    
+step 02700 ep 7 (9.9%) | loss: 1.3767 | lr: 0.09777 | rem: 270s    
+  eval ep   7 | test_loss: 0.6306 | test_acc: 81.89% | best: 81.89%
+
+step 02800 ep 8 (10.2%) | loss: 1.2325 | lr: 0.09756 | rem: 269s    
+step 02900 ep 8 (10.6%) | loss: 1.2597 | lr: 0.09735 | rem: 268s    
+step 03000 ep 8 (11.0%) | loss: 1.2623 | lr: 0.09712 | rem: 267s    
+step 03100 ep 8 (11.3%) | loss: 1.1755 | lr: 0.09689 | rem: 266s    
+  eval ep   8 | test_loss: 0.7786 | test_acc: 75.84% | best: 81.89%
+
+step 03200 ep 9 (11.7%) | loss: 1.2464 | lr: 0.09665 | rem: 265s    
+step 03300 ep 9 (12.1%) | loss: 1.1793 | lr: 0.09640 | rem: 264s    
+step 03400 ep 9 (12.4%) | loss: 1.1850 | lr: 0.09614 | rem: 263s    
+step 03500 ep 9 (12.8%) | loss: 1.0867 | lr: 0.09587 | rem: 262s    
+  eval ep   9 | test_loss: 0.7283 | test_acc: 80.17% | best: 81.89%
+
+step 03600 ep 10 (13.1%) | loss: 1.2962 | lr: 0.09560 | rem: 261s    
+step 03700 ep 10 (13.5%) | loss: 1.1156 | lr: 0.09531 | rem: 259s    
+step 03800 ep 10 (13.9%) | loss: 1.2419 | lr: 0.09502 | rem: 258s    
+step 03900 ep 10 (14.2%) | loss: 1.1584 | lr: 0.09472 | rem: 257s    
+  eval ep  10 | test_loss: 0.7270 | test_acc: 77.32% | best: 81.89%
+
+step 04000 ep 11 (14.6%) | loss: 1.1515 | lr: 0.09441 | rem: 256s    
+step 04100 ep 11 (15.0%) | loss: 1.2688 | lr: 0.09409 | rem: 255s    
+step 04200 ep 11 (15.3%) | loss: 1.2245 | lr: 0.09377 | rem: 254s    
+  eval ep  11 | test_loss: 0.6393 | test_acc: 82.46% | best: 82.46%
+
+step 04300 ep 12 (15.7%) | loss: 1.2488 | lr: 0.09343 | rem: 253s    
+step 04400 ep 12 (16.0%) | loss: 1.2490 | lr: 0.09309 | rem: 252s    
+step 04500 ep 12 (16.4%) | loss: 1.1565 | lr: 0.09274 | rem: 251s    
+step 04600 ep 12 (16.8%) | loss: 1.2149 | lr: 0.09238 | rem: 250s    
+  eval ep  12 | test_loss: 0.5511 | test_acc: 84.76% | best: 84.76%
+
+step 04700 ep 13 (17.1%) | loss: 1.2173 | lr: 0.09202 | rem: 249s    
+step 04800 ep 13 (17.5%) | loss: 1.1493 | lr: 0.09164 | rem: 248s    
+step 04900 ep 13 (17.9%) | loss: 1.2944 | lr: 0.09126 | rem: 246s    
+step 05000 ep 13 (18.2%) | loss: 1.2239 | lr: 0.09087 | rem: 245s    
+  eval ep  13 | test_loss: 0.6773 | test_acc: 82.84% | best: 84.76%
+
+step 05100 ep 14 (18.6%) | loss: 1.1983 | lr: 0.09048 | rem: 244s    
+step 05200 ep 14 (18.9%) | loss: 1.1282 | lr: 0.09007 | rem: 243s    
+step 05300 ep 14 (19.3%) | loss: 1.1674 | lr: 0.08966 | rem: 242s    
+step 05400 ep 14 (19.7%) | loss: 1.1915 | lr: 0.08924 | rem: 241s    
+  eval ep  14 | test_loss: 0.5895 | test_acc: 83.55% | best: 84.76%
+
+step 05500 ep 15 (20.0%) | loss: 1.1385 | lr: 0.08882 | rem: 240s    
+step 05600 ep 15 (20.4%) | loss: 1.1324 | lr: 0.08838 | rem: 239s    
+step 05700 ep 15 (20.8%) | loss: 1.1629 | lr: 0.08794 | rem: 238s    
+step 05800 ep 15 (21.1%) | loss: 1.1800 | lr: 0.08750 | rem: 237s    
+  eval ep  15 | test_loss: 0.6817 | test_acc: 79.75% | best: 84.76%
+
+step 05900 ep 16 (21.5%) | loss: 1.0779 | lr: 0.08704 | rem: 236s    
+step 06000 ep 16 (21.9%) | loss: 1.0907 | lr: 0.08658 | rem: 234s    
+step 06100 ep 16 (22.2%) | loss: 1.2004 | lr: 0.08611 | rem: 233s    
+step 06200 ep 16 (22.6%) | loss: 1.1454 | lr: 0.08564 | rem: 232s    
+  eval ep  16 | test_loss: 0.7891 | test_acc: 75.88% | best: 84.76%
+
+step 06300 ep 17 (22.9%) | loss: 1.1176 | lr: 0.08515 | rem: 231s    
+step 06400 ep 17 (23.3%) | loss: 1.1577 | lr: 0.08467 | rem: 230s    
+step 06500 ep 17 (23.7%) | loss: 1.1167 | lr: 0.08417 | rem: 229s    
+step 06600 ep 17 (24.0%) | loss: 1.2554 | lr: 0.08367 | rem: 228s    
+  eval ep  17 | test_loss: 0.5599 | test_acc: 84.52% | best: 84.76%
+
+step 06700 ep 18 (24.4%) | loss: 1.1117 | lr: 0.08316 | rem: 227s    
+step 06800 ep 18 (24.7%) | loss: 1.1518 | lr: 0.08265 | rem: 226s    
+step 06900 ep 18 (25.1%) | loss: 1.1067 | lr: 0.08213 | rem: 225s    
+step 07000 ep 18 (25.5%) | loss: 1.2167 | lr: 0.08161 | rem: 224s    
+  eval ep  18 | test_loss: 0.6250 | test_acc: 83.17% | best: 84.76%
+
+step 07100 ep 19 (25.8%) | loss: 1.1689 | lr: 0.08107 | rem: 223s    
+step 07200 ep 19 (26.2%) | loss: 1.0401 | lr: 0.08054 | rem: 221s    
+step 07300 ep 19 (26.6%) | loss: 1.1380 | lr: 0.07999 | rem: 220s    
+step 07400 ep 19 (26.9%) | loss: 1.1246 | lr: 0.07945 | rem: 219s    
+  eval ep  19 | test_loss: 0.5494 | test_acc: 85.05% | best: 85.05%
+
+step 07500 ep 20 (27.3%) | loss: 1.1199 | lr: 0.07889 | rem: 218s    
+step 07600 ep 20 (27.6%) | loss: 1.1288 | lr: 0.07833 | rem: 217s    
+step 07700 ep 20 (28.0%) | loss: 1.1654 | lr: 0.07777 | rem: 216s    
+step 07800 ep 20 (28.4%) | loss: 1.1837 | lr: 0.07720 | rem: 215s    
+  eval ep  20 | test_loss: 0.5205 | test_acc: 87.43% | best: 87.43%
+
+step 07900 ep 21 (28.7%) | loss: 1.1236 | lr: 0.07662 | rem: 214s    
+step 08000 ep 21 (29.1%) | loss: 1.1867 | lr: 0.07604 | rem: 213s    
+step 08100 ep 21 (29.5%) | loss: 1.1851 | lr: 0.07546 | rem: 212s    
+  eval ep  21 | test_loss: 0.5814 | test_acc: 84.41% | best: 87.43%
+
+step 08200 ep 22 (29.8%) | loss: 1.1721 | lr: 0.07487 | rem: 211s    
+step 08300 ep 22 (30.2%) | loss: 1.1560 | lr: 0.07428 | rem: 209s    
+step 08400 ep 22 (30.5%) | loss: 1.1908 | lr: 0.07368 | rem: 208s    
+step 08500 ep 22 (30.9%) | loss: 1.1314 | lr: 0.07307 | rem: 207s    
+  eval ep  22 | test_loss: 0.5133 | test_acc: 85.16% | best: 87.43%
+
+step 08600 ep 23 (31.3%) | loss: 1.1230 | lr: 0.07247 | rem: 206s    
+step 08700 ep 23 (31.6%) | loss: 1.1047 | lr: 0.07186 | rem: 205s    
+step 08800 ep 23 (32.0%) | loss: 1.0865 | lr: 0.07124 | rem: 204s    
+step 08900 ep 23 (32.4%) | loss: 1.2263 | lr: 0.07062 | rem: 203s    
+  eval ep  23 | test_loss: 0.5084 | test_acc: 86.26% | best: 87.43%
+
+step 09000 ep 24 (32.7%) | loss: 1.0401 | lr: 0.07000 | rem: 202s    
+step 09100 ep 24 (33.1%) | loss: 1.0835 | lr: 0.06937 | rem: 201s    
+step 09200 ep 24 (33.4%) | loss: 1.1642 | lr: 0.06874 | rem: 200s    
+step 09300 ep 24 (33.8%) | loss: 1.1199 | lr: 0.06811 | rem: 199s    
+  eval ep  24 | test_loss: 0.4843 | test_acc: 88.15% | best: 88.15%
+
+step 09400 ep 25 (34.2%) | loss: 1.2133 | lr: 0.06747 | rem: 197s    
+step 09500 ep 25 (34.5%) | loss: 1.1697 | lr: 0.06683 | rem: 196s    
+step 09600 ep 25 (34.9%) | loss: 1.2108 | lr: 0.06619 | rem: 195s    
+step 09700 ep 25 (35.2%) | loss: 1.0558 | lr: 0.06554 | rem: 194s    
+  eval ep  25 | test_loss: 0.5311 | test_acc: 87.01% | best: 88.15%
+
+step 09800 ep 26 (35.6%) | loss: 1.1165 | lr: 0.06489 | rem: 193s    
+step 09900 ep 26 (36.0%) | loss: 1.1100 | lr: 0.06424 | rem: 192s    
+step 10000 ep 26 (36.3%) | loss: 1.1082 | lr: 0.06358 | rem: 191s    
+step 10100 ep 26 (36.7%) | loss: 1.1164 | lr: 0.06292 | rem: 190s    
+  eval ep  26 | test_loss: 0.5447 | test_acc: 88.20% | best: 88.20%
+
+step 10200 ep 27 (37.1%) | loss: 1.1191 | lr: 0.06226 | rem: 189s    
+step 10300 ep 27 (37.4%) | loss: 1.0124 | lr: 0.06160 | rem: 188s    
+step 10400 ep 27 (37.8%) | loss: 1.0983 | lr: 0.06094 | rem: 187s    
+step 10500 ep 27 (38.2%) | loss: 1.1141 | lr: 0.06027 | rem: 185s    
+  eval ep  27 | test_loss: 0.4889 | test_acc: 88.52% | best: 88.52%
+
+step 10600 ep 28 (38.5%) | loss: 1.1223 | lr: 0.05960 | rem: 184s    
+step 10700 ep 28 (38.9%) | loss: 1.1026 | lr: 0.05893 | rem: 183s    
+step 10800 ep 28 (39.3%) | loss: 1.0908 | lr: 0.05826 | rem: 182s    
+step 10900 ep 28 (39.6%) | loss: 1.0519 | lr: 0.05759 | rem: 181s    
+  eval ep  28 | test_loss: 0.5055 | test_acc: 87.62% | best: 88.52%
+
+step 11000 ep 29 (40.0%) | loss: 1.1637 | lr: 0.05691 | rem: 180s    
+step 11100 ep 29 (40.4%) | loss: 1.0553 | lr: 0.05624 | rem: 179s    
+step 11200 ep 29 (40.7%) | loss: 1.0127 | lr: 0.05556 | rem: 178s    
+step 11300 ep 29 (41.1%) | loss: 1.0236 | lr: 0.05488 | rem: 177s    
+  eval ep  29 | test_loss: 0.4891 | test_acc: 87.88% | best: 88.52%
+
+step 11400 ep 30 (41.4%) | loss: 1.0560 | lr: 0.05420 | rem: 176s    
+step 11500 ep 30 (41.8%) | loss: 1.0327 | lr: 0.05352 | rem: 175s    
+step 11600 ep 30 (42.2%) | loss: 1.0811 | lr: 0.05284 | rem: 174s    
+step 11700 ep 30 (42.5%) | loss: 1.0256 | lr: 0.05216 | rem: 172s    
+  eval ep  30 | test_loss: 0.4474 | test_acc: 89.09% | best: 89.09%
+
+step 11800 ep 31 (42.9%) | loss: 1.1627 | lr: 0.05148 | rem: 171s    
+step 11900 ep 31 (43.2%) | loss: 1.0613 | lr: 0.05080 | rem: 170s    
+step 12000 ep 31 (43.6%) | loss: 1.0910 | lr: 0.05012 | rem: 169s    
+  eval ep  31 | test_loss: 0.5337 | test_acc: 88.95% | best: 89.09%
+
+step 12100 ep 32 (44.0%) | loss: 1.1770 | lr: 0.04943 | rem: 168s    
+step 12200 ep 32 (44.3%) | loss: 1.1353 | lr: 0.04875 | rem: 167s    
+step 12300 ep 32 (44.7%) | loss: 1.0676 | lr: 0.04807 | rem: 166s    
+step 12400 ep 32 (45.0%) | loss: 0.9854 | lr: 0.04739 | rem: 165s    
+  eval ep  32 | test_loss: 0.4795 | test_acc: 89.23% | best: 89.23%
+
+step 12500 ep 33 (45.4%) | loss: 1.0974 | lr: 0.04671 | rem: 164s    
+step 12600 ep 33 (45.8%) | loss: 1.0011 | lr: 0.04603 | rem: 163s    
+step 12700 ep 33 (46.1%) | loss: 1.0610 | lr: 0.04535 | rem: 162s    
+step 12800 ep 33 (46.5%) | loss: 1.0873 | lr: 0.04467 | rem: 161s    
+  eval ep  33 | test_loss: 0.4471 | test_acc: 91.30% | best: 91.30%
+
+step 12900 ep 34 (46.9%) | loss: 1.1597 | lr: 0.04399 | rem: 159s    
+step 13000 ep 34 (47.2%) | loss: 0.9622 | lr: 0.04332 | rem: 158s    
+step 13100 ep 34 (47.6%) | loss: 1.0493 | lr: 0.04264 | rem: 157s    
+step 13200 ep 34 (47.9%) | loss: 1.1015 | lr: 0.04197 | rem: 156s    
+  eval ep  34 | test_loss: 0.4743 | test_acc: 90.02% | best: 91.30%
+
+step 13300 ep 35 (48.3%) | loss: 0.9562 | lr: 0.04130 | rem: 155s    
+step 13400 ep 35 (48.7%) | loss: 0.9790 | lr: 0.04062 | rem: 154s    
+step 13500 ep 35 (49.0%) | loss: 1.0826 | lr: 0.03996 | rem: 153s    
+step 13600 ep 35 (49.4%) | loss: 1.0344 | lr: 0.03929 | rem: 152s    
+  eval ep  35 | test_loss: 0.3869 | test_acc: 91.07% | best: 91.30%
+
+step 13700 ep 36 (49.7%) | loss: 1.0853 | lr: 0.03862 | rem: 151s    
+step 13800 ep 36 (50.1%) | loss: 1.0439 | lr: 0.03796 | rem: 150s    
+step 13900 ep 36 (50.5%) | loss: 0.9520 | lr: 0.03730 | rem: 149s    
+step 14000 ep 36 (50.8%) | loss: 0.9772 | lr: 0.03664 | rem: 148s    
+  eval ep  36 | test_loss: 0.4532 | test_acc: 90.31% | best: 91.30%
+
+step 14100 ep 37 (51.2%) | loss: 1.0509 | lr: 0.03599 | rem: 146s    
+step 14200 ep 37 (51.5%) | loss: 0.9883 | lr: 0.03533 | rem: 145s    
+step 14300 ep 37 (51.9%) | loss: 0.9014 | lr: 0.03468 | rem: 144s    
+step 14400 ep 37 (52.3%) | loss: 1.0018 | lr: 0.03403 | rem: 143s    
+  eval ep  37 | test_loss: 0.3985 | test_acc: 91.68% | best: 91.68%
+
+step 14500 ep 38 (52.6%) | loss: 1.0402 | lr: 0.03339 | rem: 142s    
+step 14600 ep 38 (53.0%) | loss: 0.9791 | lr: 0.03275 | rem: 141s    
+step 14700 ep 38 (53.4%) | loss: 1.0825 | lr: 0.03211 | rem: 140s    
+step 14800 ep 38 (53.7%) | loss: 0.9464 | lr: 0.03147 | rem: 139s    
+  eval ep  38 | test_loss: 0.3956 | test_acc: 91.16% | best: 91.68%
+
+step 14900 ep 39 (54.1%) | loss: 1.1299 | lr: 0.03084 | rem: 138s    
+step 15000 ep 39 (54.4%) | loss: 0.9506 | lr: 0.03021 | rem: 137s    
+step 15100 ep 39 (54.8%) | loss: 0.9444 | lr: 0.02959 | rem: 136s    
+step 15200 ep 39 (55.2%) | loss: 0.9982 | lr: 0.02897 | rem: 135s    
+  eval ep  39 | test_loss: 0.3952 | test_acc: 91.55% | best: 91.68%
+
+step 15300 ep 40 (55.5%) | loss: 0.9730 | lr: 0.02835 | rem: 133s    
+step 15400 ep 40 (55.9%) | loss: 1.0052 | lr: 0.02774 | rem: 132s    
+step 15500 ep 40 (56.2%) | loss: 1.0317 | lr: 0.02713 | rem: 131s    
+step 15600 ep 40 (56.6%) | loss: 1.0679 | lr: 0.02653 | rem: 130s    
+  eval ep  40 | test_loss: 0.4124 | test_acc: 92.33% | best: 92.33%
+
+step 15700 ep 41 (57.0%) | loss: 1.0759 | lr: 0.02593 | rem: 129s    
+step 15800 ep 41 (57.3%) | loss: 0.9192 | lr: 0.02533 | rem: 128s    
+step 15900 ep 41 (57.7%) | loss: 1.0044 | lr: 0.02474 | rem: 127s    
+  eval ep  41 | test_loss: 0.3768 | test_acc: 91.95% | best: 92.33%
+
+step 16000 ep 42 (58.1%) | loss: 0.9101 | lr: 0.02415 | rem: 126s    
+step 16100 ep 42 (58.4%) | loss: 0.9971 | lr: 0.02357 | rem: 125s    
+step 16200 ep 42 (58.8%) | loss: 1.0692 | lr: 0.02300 | rem: 124s    
+step 16300 ep 42 (59.2%) | loss: 1.0053 | lr: 0.02243 | rem: 123s    
+  eval ep  42 | test_loss: 0.3873 | test_acc: 93.17% | best: 93.17%
+
+step 16400 ep 43 (59.5%) | loss: 0.9246 | lr: 0.02186 | rem: 121s    
+step 16500 ep 43 (59.9%) | loss: 0.9757 | lr: 0.02130 | rem: 120s    
+step 16600 ep 43 (60.2%) | loss: 1.0080 | lr: 0.02074 | rem: 119s    
+step 16700 ep 43 (60.6%) | loss: 0.9571 | lr: 0.02019 | rem: 118s    
+  eval ep  43 | test_loss: 0.3705 | test_acc: 93.45% | best: 93.45%
+
+step 16800 ep 44 (61.0%) | loss: 0.9195 | lr: 0.01965 | rem: 117s    
+step 16900 ep 44 (61.3%) | loss: 0.9609 | lr: 0.01911 | rem: 116s    
+step 17000 ep 44 (61.7%) | loss: 1.0514 | lr: 0.01857 | rem: 115s    
+step 17100 ep 44 (62.0%) | loss: 0.9258 | lr: 0.01805 | rem: 114s    
+  eval ep  44 | test_loss: 0.4087 | test_acc: 92.73% | best: 93.45%
+
+step 17200 ep 45 (62.4%) | loss: 0.9346 | lr: 0.01753 | rem: 113s    
+step 17300 ep 45 (62.8%) | loss: 0.9315 | lr: 0.01701 | rem: 112s    
+step 17400 ep 45 (63.1%) | loss: 0.8966 | lr: 0.01650 | rem: 111s    
+step 17500 ep 45 (63.5%) | loss: 0.9982 | lr: 0.01600 | rem: 110s    
+  eval ep  45 | test_loss: 0.3355 | test_acc: 93.44% | best: 93.45%
+
+step 17600 ep 46 (63.8%) | loss: 0.9671 | lr: 0.01550 | rem: 108s    
+step 17700 ep 46 (64.2%) | loss: 0.8759 | lr: 0.01501 | rem: 107s    
+step 17800 ep 46 (64.6%) | loss: 0.9147 | lr: 0.01453 | rem: 106s    
+step 17900 ep 46 (64.9%) | loss: 0.9071 | lr: 0.01405 | rem: 105s    
+  eval ep  46 | test_loss: 0.3756 | test_acc: 93.59% | best: 93.59%
+
+step 18000 ep 47 (65.3%) | loss: 1.0017 | lr: 0.01358 | rem: 104s    
+step 18100 ep 47 (65.6%) | loss: 0.9080 | lr: 0.01312 | rem: 103s    
+step 18200 ep 47 (66.0%) | loss: 0.9165 | lr: 0.01266 | rem: 102s    
+step 18300 ep 47 (66.4%) | loss: 1.0219 | lr: 0.01221 | rem: 101s    
+  eval ep  47 | test_loss: 0.3190 | test_acc: 93.75% | best: 93.75%
+
+step 18400 ep 48 (66.7%) | loss: 0.9112 | lr: 0.01177 | rem: 100s    
+step 18500 ep 48 (67.1%) | loss: 1.0294 | lr: 0.01133 | rem: 99s    
+step 18600 ep 48 (67.4%) | loss: 0.8964 | lr: 0.01090 | rem: 98s    
+step 18700 ep 48 (67.8%) | loss: 0.9712 | lr: 0.01048 | rem: 97s    
+  eval ep  48 | test_loss: 0.3952 | test_acc: 94.19% | best: 94.19%
+
+step 18800 ep 49 (68.2%) | loss: 0.9469 | lr: 0.01007 | rem: 96s    
+step 18900 ep 49 (68.5%) | loss: 0.8884 | lr: 0.00966 | rem: 94s    
+step 19000 ep 49 (68.9%) | loss: 0.8826 | lr: 0.00926 | rem: 93s    
+step 19100 ep 49 (69.2%) | loss: 0.8244 | lr: 0.00887 | rem: 92s    
+  eval ep  49 | test_loss: 0.3137 | test_acc: 94.85% | best: 94.85%
+
+step 19200 ep 50 (69.6%) | loss: 0.8705 | lr: 0.00848 | rem: 91s    
+step 19300 ep 50 (70.0%) | loss: 0.9320 | lr: 0.00811 | rem: 90s    
+step 19400 ep 50 (70.3%) | loss: 0.8398 | lr: 0.00774 | rem: 89s    
+step 19500 ep 50 (70.7%) | loss: 0.9059 | lr: 0.00738 | rem: 88s    
+  eval ep  50 | test_loss: 0.3151 | test_acc: 95.15% | best: 95.15%
+
+step 19600 ep 51 (71.1%) | loss: 0.8700 | lr: 0.00703 | rem: 87s    
+step 19700 ep 51 (71.4%) | loss: 0.9064 | lr: 0.00668 | rem: 86s    
+step 19800 ep 51 (71.8%) | loss: 0.9583 | lr: 0.00635 | rem: 85s    
+  eval ep  51 | test_loss: 0.3393 | test_acc: 94.96% | best: 95.15%
+
+step 19900 ep 52 (72.1%) | loss: 0.8761 | lr: 0.00602 | rem: 84s    
+step 20000 ep 52 (72.5%) | loss: 0.8855 | lr: 0.00570 | rem: 82s    
+step 20100 ep 52 (72.9%) | loss: 0.9167 | lr: 0.00538 | rem: 81s    
+step 20200 ep 52 (73.2%) | loss: 0.8890 | lr: 0.00508 | rem: 80s    
+  eval ep  52 | test_loss: 0.2915 | test_acc: 95.16% | best: 95.16%
+
+step 20300 ep 53 (73.6%) | loss: 0.8542 | lr: 0.00479 | rem: 79s    
+step 20400 ep 53 (74.0%) | loss: 0.8398 | lr: 0.00450 | rem: 78s    
+step 20500 ep 53 (74.3%) | loss: 0.9473 | lr: 0.00422 | rem: 77s    
+step 20600 ep 53 (74.7%) | loss: 0.9295 | lr: 0.00395 | rem: 76s    
+  eval ep  53 | test_loss: 0.2973 | test_acc: 95.32% | best: 95.32%
+
+step 20700 ep 54 (75.1%) | loss: 0.7942 | lr: 0.00369 | rem: 75s    
+step 20800 ep 54 (75.4%) | loss: 0.8342 | lr: 0.00344 | rem: 74s    
+step 20900 ep 54 (75.8%) | loss: 0.9418 | lr: 0.00319 | rem: 72s    
+step 21000 ep 54 (76.2%) | loss: 0.8613 | lr: 0.00296 | rem: 71s    
+  eval ep  54 | test_loss: 0.3296 | test_acc: 95.54% | best: 95.54%
+
+step 21100 ep 55 (76.6%) | loss: 0.7542 | lr: 0.00273 | rem: 70s    
+step 21200 ep 55 (76.9%) | loss: 0.9419 | lr: 0.00251 | rem: 69s    
+step 21300 ep 55 (77.3%) | loss: 0.9298 | lr: 0.00230 | rem: 68s    
+step 21400 ep 55 (77.6%) | loss: 0.8500 | lr: 0.00210 | rem: 67s    
+  eval ep  55 | test_loss: 0.3155 | test_acc: 95.63% | best: 95.63%
+
+step 21500 ep 56 (78.0%) | loss: 0.8446 | lr: 0.00191 | rem: 66s    
+step 21600 ep 56 (78.4%) | loss: 0.8029 | lr: 0.00173 | rem: 65s    
+step 21700 ep 56 (78.7%) | loss: 0.9796 | lr: 0.00156 | rem: 64s    
+step 21800 ep 56 (79.1%) | loss: 0.8983 | lr: 0.00139 | rem: 63s    
+  eval ep  56 | test_loss: 0.2957 | test_acc: 95.75% | best: 95.75%
+
+step 21900 ep 57 (79.5%) | loss: 0.9138 | lr: 0.00124 | rem: 62s    
+step 22000 ep 57 (79.8%) | loss: 0.8275 | lr: 0.00109 | rem: 61s    
+step 22100 ep 57 (80.2%) | loss: 0.8505 | lr: 0.00095 | rem: 59s    
+step 22200 ep 57 (80.6%) | loss: 0.9197 | lr: 0.00083 | rem: 58s    
+  eval ep  57 | test_loss: 0.3248 | test_acc: 95.80% | best: 95.80%
+
+step 22300 ep 58 (80.9%) | loss: 0.9273 | lr: 0.00071 | rem: 57s    
+step 22400 ep 58 (81.3%) | loss: 0.7264 | lr: 0.00060 | rem: 56s    
+step 22500 ep 58 (81.6%) | loss: 0.7713 | lr: 0.00050 | rem: 55s    
+step 22600 ep 58 (82.0%) | loss: 0.7831 | lr: 0.00041 | rem: 54s    
+  eval ep  58 | test_loss: 0.3018 | test_acc: 95.83% | best: 95.83%
+
+step 22700 ep 59 (82.4%) | loss: 0.9019 | lr: 0.00032 | rem: 53s    
+step 22800 ep 59 (82.7%) | loss: 0.8350 | lr: 0.00025 | rem: 52s    
+step 22900 ep 59 (83.1%) | loss: 0.7715 | lr: 0.00019 | rem: 51s    
+step 23000 ep 59 (83.4%) | loss: 0.8244 | lr: 0.00013 | rem: 50s    
+  eval ep  59 | test_loss: 0.2623 | test_acc: 95.93% | best: 95.93%
+
+step 23100 ep 60 (83.8%) | loss: 0.8087 | lr: 0.00009 | rem: 49s    
+step 23200 ep 60 (84.2%) | loss: 0.7601 | lr: 0.00005 | rem: 47s    
+step 23300 ep 60 (84.5%) | loss: 0.8947 | lr: 0.00003 | rem: 46s    
+step 23400 ep 60 (84.9%) | loss: 0.8860 | lr: 0.00001 | rem: 45s    
+  eval ep  60 | test_loss: 0.2999 | test_acc: 95.80% | best: 95.93%
+
+step 23500 ep 61 (85.2%) | loss: 0.8697 | lr: 0.00000 | rem: 44s    
+step 23600 ep 61 (85.6%) | loss: 0.8072 | lr: 0.00000 | rem: 43s    
+step 23700 ep 61 (86.0%) | loss: 0.8798 | lr: 0.00000 | rem: 42s    
+  eval ep  61 | test_loss: 0.2813 | test_acc: 95.86% | best: 95.93%
+
+step 23800 ep 62 (86.3%) | loss: 0.9262 | lr: 0.00000 | rem: 41s    
+step 23900 ep 62 (86.7%) | loss: 0.7464 | lr: 0.00000 | rem: 40s    
+step 24000 ep 62 (87.1%) | loss: 0.9149 | lr: 0.00000 | rem: 39s    
+step 24100 ep 62 (87.4%) | loss: 0.7674 | lr: 0.00000 | rem: 38s    
+  eval ep  62 | test_loss: 0.3351 | test_acc: 95.69% | best: 95.93%
+
+step 24200 ep 63 (87.8%) | loss: 0.8995 | lr: 0.00000 | rem: 37s    
+step 24300 ep 63 (88.1%) | loss: 0.8514 | lr: 0.00000 | rem: 36s    
+step 24400 ep 63 (88.5%) | loss: 0.9195 | lr: 0.00000 | rem: 35s    
+step 24500 ep 63 (88.9%) | loss: 0.8755 | lr: 0.00000 | rem: 33s    
+  eval ep  63 | test_loss: 0.2670 | test_acc: 95.88% | best: 95.93%
+
+step 24600 ep 64 (89.2%) | loss: 0.8522 | lr: 0.00000 | rem: 32s    
+step 24700 ep 64 (89.6%) | loss: 0.8403 | lr: 0.00000 | rem: 31s    
+step 24800 ep 64 (89.9%) | loss: 0.7888 | lr: 0.00000 | rem: 30s    
+step 24900 ep 64 (90.3%) | loss: 0.8903 | lr: 0.00000 | rem: 29s    
+  eval ep  64 | test_loss: 0.2914 | test_acc: 95.89% | best: 95.93%
+
+step 25000 ep 65 (90.7%) | loss: 0.8837 | lr: 0.00000 | rem: 28s    
+step 25100 ep 65 (91.0%) | loss: 0.9076 | lr: 0.00000 | rem: 27s    
+step 25200 ep 65 (91.4%) | loss: 0.8713 | lr: 0.00000 | rem: 26s    
+step 25300 ep 65 (91.8%) | loss: 0.8089 | lr: 0.00000 | rem: 25s    
+  eval ep  65 | test_loss: 0.2837 | test_acc: 95.86% | best: 95.93%
+
+step 25400 ep 66 (92.1%) | loss: 0.8086 | lr: 0.00000 | rem: 24s    
+step 25500 ep 66 (92.5%) | loss: 0.8872 | lr: 0.00000 | rem: 23s    
+step 25600 ep 66 (92.8%) | loss: 0.8590 | lr: 0.00000 | rem: 21s    
+step 25700 ep 66 (93.2%) | loss: 0.7979 | lr: 0.00000 | rem: 20s    
+  eval ep  66 | test_loss: 0.3147 | test_acc: 95.85% | best: 95.93%
+
+step 25800 ep 67 (93.6%) | loss: 1.0157 | lr: 0.00000 | rem: 19s    
+step 25900 ep 67 (93.9%) | loss: 0.9643 | lr: 0.00000 | rem: 18s    
+step 26000 ep 67 (94.3%) | loss: 0.8437 | lr: 0.00000 | rem: 17s    
+step 26100 ep 67 (94.6%) | loss: 0.8615 | lr: 0.00000 | rem: 16s    
+  eval ep  67 | test_loss: 0.2640 | test_acc: 95.88% | best: 95.93%
+
+step 26200 ep 68 (95.0%) | loss: 0.8733 | lr: 0.00000 | rem: 15s    
+step 26300 ep 68 (95.4%) | loss: 0.7976 | lr: 0.00000 | rem: 14s    
+step 26400 ep 68 (95.7%) | loss: 0.8651 | lr: 0.00000 | rem: 13s    
+step 26500 ep 68 (96.1%) | loss: 0.8698 | lr: 0.00000 | rem: 12s    
+  eval ep  68 | test_loss: 0.3278 | test_acc: 95.76% | best: 95.93%
+
+step 26600 ep 69 (96.4%) | loss: 0.7726 | lr: 0.00000 | rem: 11s    
+step 26700 ep 69 (96.8%) | loss: 0.8035 | lr: 0.00000 | rem: 10s    
+step 26800 ep 69 (97.2%) | loss: 0.7886 | lr: 0.00000 | rem: 9s    
+step 26900 ep 69 (97.5%) | loss: 0.8038 | lr: 0.00000 | rem: 7s    
+  eval ep  69 | test_loss: 0.2822 | test_acc: 95.91% | best: 95.93%
+
+step 27000 ep 70 (97.9%) | loss: 0.8682 | lr: 0.00000 | rem: 6s    
+step 27100 ep 70 (98.2%) | loss: 0.8096 | lr: 0.00000 | rem: 5s    
+step 27200 ep 70 (98.6%) | loss: 0.8267 | lr: 0.00000 | rem: 4s    
+step 27300 ep 70 (99.0%) | loss: 0.9470 | lr: 0.00000 | rem: 3s    
+  eval ep  70 | test_loss: 0.3326 | test_acc: 95.74% | best: 95.93%
+
+step 27400 ep 71 (99.3%) | loss: 0.7954 | lr: 0.00000 | rem: 2s    
+step 27500 ep 71 (99.7%) | loss: 0.8506 | lr: 0.00000 | rem: 1s    
+  eval ep  71 | test_loss: 0.3043 | test_acc: 95.83% | best: 95.93%
+[audit] wall_clock=422.8s reported_training_seconds=300.0036702156067 budget=300s
+best_test_acc: 95.9300
