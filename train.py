@@ -208,7 +208,8 @@ def main():
             transforms.RandomHorizontalFlip(),
             transforms.ToTensor(),
             transforms.Normalize(EVAL_MEAN, EVAL_STD),
-            Cutout(8),
+            Cutout(12),
+            transforms.RandomErasing(p=0.25, scale=(0.02, 0.15), ratio=(0.3, 3.3), value=0.0),
         ]
     )
 
