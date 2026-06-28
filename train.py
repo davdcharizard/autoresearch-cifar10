@@ -15,83 +15,96 @@ from prepare import DATASET_DIR, NUM_WORKERS, TIME_BUDGET_S, Eval
 # Hyperparameters (edit these directly)
 # ---------------------------------------------------------------------------
 
-NUM_BLOCKS = 3  # ResNet-20 = 6*3+2
 NUM_CLASSES = 10
-BATCH_SIZE = 128
-LR = 0.1
+BATCH_SIZE = 512
+PEAK_LR = 0.4  # mean-loss one-cycle peak (DavidNet "lambda" convention)
 MOMENTUM = 0.9
-WEIGHT_DECAY = 1e-4
-MAX_STEPS = 64000
+WEIGHT_DECAY = 5e-4
+LABEL_SMOOTHING = 0.2
+PCT_START = 0.15  # fraction of the time budget spent ramping LR 0 -> PEAK_LR
+SCALE_OUT = 0.125  # logit scaling (DavidNet: "output scale is important")
+MAX_STEPS = 1_000_000  # high guard; the 300s time budget is the real terminator
 evaluator = Eval()
 
+# Normalization MUST match the frozen eval harness in prepare.py (Eval.__init__).
+EVAL_MEAN, EVAL_STD = (0.4914, 0.4822, 0.4465), (1.0, 1.0, 1.0)
+
 
 # ---------------------------------------------------------------------------
-# ResNet-20 for CIFAR-10 (He et al. 2015, CIFAR variant)
+# Augmentation: Cutout (pure torch, no new deps), operates on normalized CHW tensor
 # ---------------------------------------------------------------------------
 
 
-class BasicBlock(nn.Module):
-    def __init__(self, in_channels, out_channels, stride=1):
+class Cutout:
+    """Zero out a square patch of the (already-normalized) image.
+
+    Filling with 0.0 equals the dataset mean in raw pixel space, since the
+    normalization is mean-subtract only (std=1) — the standard cutout-with-mean
+    behavior.
+    """
+
+    def __init__(self, size=8):
+        self.size = size
+
+    def __call__(self, img):  # img: [C, H, W] tensor
+        h, w = img.shape[1], img.shape[2]
+        cy = int(torch.randint(h, (1,)).item())
+        cx = int(torch.randint(w, (1,)).item())
+        s = self.size // 2
+        y1, y2 = max(0, cy - s), min(h, cy + s)
+        x1, x2 = max(0, cx - s), min(w, cx + s)
+        img[:, y1:y2, x1:x2] = 0.0
+        return img
+
+
+# ---------------------------------------------------------------------------
+# ResNet-9 / "DavidNet" (David Page, cifar10-fast / DAWNBench)
+# Wide-shallow residual net that converges in few epochs under a one-cycle LR.
+# ---------------------------------------------------------------------------
+
+
+def conv_bn(c_in, c_out):
+    return nn.Sequential(
+        nn.Conv2d(c_in, c_out, 3, padding=1, bias=False),
+        nn.BatchNorm2d(c_out),
+        nn.ReLU(inplace=True),
+    )
+
+
+class Residual(nn.Module):
+    def __init__(self, c):
         super().__init__()
-        self.conv1 = nn.Conv2d(
-            in_channels, out_channels, 3, stride=stride, padding=1, bias=False
-        )
-        self.bn1 = nn.BatchNorm2d(out_channels)
-        self.conv2 = nn.Conv2d(
-            out_channels, out_channels, 3, stride=1, padding=1, bias=False
-        )
-        self.bn2 = nn.BatchNorm2d(out_channels)
-
-        self.stride = stride
-        self.need_pad = stride != 1 or in_channels != out_channels
-        self.pad_channels = out_channels - in_channels if self.need_pad else 0
+        self.c1 = conv_bn(c, c)
+        self.c2 = conv_bn(c, c)
 
     def forward(self, x):
-        out = F.relu(self.bn1(self.conv1(x)))
-        out = self.bn2(self.conv2(out))
-        shortcut = x
-        if self.need_pad:
-            shortcut = shortcut[:, :, :: self.stride, :: self.stride]
-            shortcut = F.pad(shortcut, (0, 0, 0, 0, 0, self.pad_channels))
-        out += shortcut
-        return F.relu(out)
+        return x + self.c2(self.c1(x))
 
 
-class ResNet(nn.Module):
-    def __init__(self, num_blocks, num_classes=10):
+class ResNet9(nn.Module):
+    def __init__(self, num_classes=10, scale_out=SCALE_OUT):
         super().__init__()
-        self.conv1 = nn.Conv2d(3, 16, 3, stride=1, padding=1, bias=False)
-        self.bn1 = nn.BatchNorm2d(16)
-        self.layer1 = self._make_layer(16, 16, num_blocks, stride=1)
-        self.layer2 = self._make_layer(16, 32, num_blocks, stride=2)
-        self.layer3 = self._make_layer(32, 64, num_blocks, stride=2)
-        self.fc = nn.Linear(64, num_classes)
+        self.scale_out = scale_out
+        self.prep = conv_bn(3, 64)
+        self.layer1 = nn.Sequential(conv_bn(64, 128), nn.MaxPool2d(2), Residual(128))
+        self.layer2 = nn.Sequential(conv_bn(128, 256), nn.MaxPool2d(2))
+        self.layer3 = nn.Sequential(conv_bn(256, 512), nn.MaxPool2d(2), Residual(512))
+        self.pool = nn.MaxPool2d(4)
+        self.fc = nn.Linear(512, num_classes, bias=False)
         self.apply(self._weights_init)
 
     @staticmethod
     def _weights_init(m):
-        # Kaiming init normal instead of default uniform per "Delving Deep into Rectifiers" (He et al. 2015), cited as
-        # [13] in the ResNet paper
         if isinstance(m, (nn.Conv2d, nn.Linear)):
-            init.kaiming_normal_(m.weight)
-
-    def _make_layer(self, in_ch, out_ch, num_blocks, stride):
-        strides = [stride] + [1] * (num_blocks - 1)
-        layers = []
-        ch = in_ch
-        for s in strides:
-            layers.append(BasicBlock(ch, out_ch, s))
-            ch = out_ch
-        return nn.Sequential(*layers)
+            init.kaiming_normal_(m.weight, nonlinearity="relu")
 
     def forward(self, x):
-        out = F.relu(self.bn1(self.conv1(x)))
-        out = self.layer1(out)
-        out = self.layer2(out)
-        out = self.layer3(out)
-        out = F.adaptive_avg_pool2d(out, 1)
-        out = out.view(out.size(0), -1)
-        return self.fc(out)
+        x = self.prep(x)
+        x = self.layer1(x)
+        x = self.layer2(x)
+        x = self.layer3(x)
+        x = self.pool(x).flatten(1)
+        return self.fc(x) * self.scale_out
 
 
 # ---------------------------------------------------------------------------
@@ -107,19 +120,17 @@ def main():
     t_start = time.time()
     torch.manual_seed(42)
     torch.cuda.manual_seed(42)
+    torch.backends.cudnn.benchmark = True
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Device: {device}")
 
-    mean, std = (
-        (0.4914, 0.4822, 0.4465),
-        (1, 1, 1),
-    )  # Yes original paper only mention per-pixel mean and this is per band. See README
     train_tf = transforms.Compose(
         [
             transforms.RandomCrop(32, padding=4),
             transforms.RandomHorizontalFlip(),
             transforms.ToTensor(),
-            transforms.Normalize(mean, std),
+            transforms.Normalize(EVAL_MEAN, EVAL_STD),
+            Cutout(8),
         ]
     )
 
@@ -133,18 +144,22 @@ def main():
         num_workers=NUM_WORKERS,
         pin_memory=True,
         drop_last=True,
+        persistent_workers=True,
+        prefetch_factor=4,
     )
 
-    model = ResNet(NUM_BLOCKS, NUM_CLASSES).to(device)
+    model = ResNet9(NUM_CLASSES).to(device, memory_format=torch.channels_last)
     num_params = sum(p.numel() for p in model.parameters())
-    print(f"ResNet-{6 * NUM_BLOCKS + 2} | params: {num_params:,}")
+    print(f"ResNet-9 (DavidNet) | params: {num_params:,}")
 
     optimizer = optim.SGD(
-        model.parameters(), lr=LR, momentum=MOMENTUM, weight_decay=WEIGHT_DECAY
+        model.parameters(),
+        lr=PEAK_LR,
+        momentum=MOMENTUM,
+        weight_decay=WEIGHT_DECAY,
+        nesterov=True,
     )
-    scheduler = optim.lr_scheduler.MultiStepLR(
-        optimizer, milestones=[32000, 48000], gamma=0.1
-    )
+    criterion = nn.CrossEntropyLoss(label_smoothing=LABEL_SMOOTHING)
     print(f"Time budget: {TIME_BUDGET_S}s")
     print(f"Batches per epoch: {len(train_loader)}")
 
@@ -165,15 +180,30 @@ def main():
 
         for inputs, targets in train_loader:
             t0 = time.time()
-            inputs = inputs.to(device, non_blocking=True)
+
+            # Time-based one-cycle LR: triangular ramp 0 -> PEAK over the first
+            # PCT_START of the budget, then linear decay PEAK -> ~0 by the budget
+            # end. Keyed on elapsed *training* time so the anneal completes
+            # regardless of throughput (at most a single-step overshoot).
+            progress = min(1.0, total_training_time / TIME_BUDGET_S)
+            if progress < PCT_START:
+                lr = PEAK_LR * progress / PCT_START
+            else:
+                lr = PEAK_LR * (1.0 - progress) / (1.0 - PCT_START)
+            for g in optimizer.param_groups:
+                g["lr"] = lr
+
+            inputs = inputs.to(device, non_blocking=True).to(
+                memory_format=torch.channels_last
+            )
             targets = targets.to(device, non_blocking=True)
 
-            optimizer.zero_grad()
-            outputs = model(inputs)
-            loss = F.cross_entropy(outputs, targets)
+            optimizer.zero_grad(set_to_none=True)
+            with torch.autocast("cuda", dtype=torch.bfloat16):
+                outputs = model(inputs)
+                loss = criterion(outputs, targets)
             loss.backward()
             optimizer.step()
-            scheduler.step()
 
             torch.cuda.synchronize()
             dt = time.time() - t0
@@ -187,7 +217,6 @@ def main():
             )
             debiased = smooth_train_loss / (1 - ema_beta**step)
 
-            lr = optimizer.param_groups[0]["lr"]
             pct_done = 100 * total_training_time / TIME_BUDGET_S
             img_per_sec = int(BATCH_SIZE / dt)
             remaining = max(0, TIME_BUDGET_S - total_training_time)
@@ -207,8 +236,9 @@ def main():
         if test_acc > best_acc:
             best_acc = test_acc
 
+        wall_elapsed = time.time() - t_start
         print(
-            f"\n  eval ep {epoch:3d} | test_loss: {test_loss:.4f} | test_acc: {test_acc:.2f}% | best: {best_acc:.2f}%"
+            f"\n  eval ep {epoch:3d} | test_loss: {test_loss:.4f} | test_acc: {test_acc:.2f}% | best: {best_acc:.2f}% | wall: {wall_elapsed:.0f}s"
         )
 
         if epoch == 1:
