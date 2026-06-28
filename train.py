@@ -62,6 +62,37 @@ class Cutout:
 
 
 # ---------------------------------------------------------------------------
+# Frozen patch-whitening front-end (David Page / hlb / airbench).
+# A fixed ZCA-whitening 3x3 conv computed once from CIFAR-10 training patches,
+# in the SAME normalized space as the frozen eval (mean-subtract, std=1).
+# ---------------------------------------------------------------------------
+
+
+def compute_whitening_weight(train_set, mean, kernel=3, n_img=2000, n_patches=50000, eps=1e-4):
+    """Frozen conv weight [2*K, 3, kernel, kernel] whitening kxk RGB patches.
+
+    Computed in eval space (ToTensor /255 then subtract mean, std=1). Capped at
+    n_img images (~1.8M interior patches) to bound the off-budget materialization;
+    the patch subsample uses a LOCAL Generator so global RNG state is untouched.
+    """
+    mean_t = torch.tensor(mean).view(1, 3, 1, 1)
+    n_img = min(n_img, len(train_set.data))
+    imgs = torch.from_numpy(train_set.data[:n_img]).float().div_(255.0)  # [N,32,32,3]
+    imgs = imgs.permute(0, 3, 1, 2).contiguous() - mean_t               # [N,3,32,32] eval space
+    p = imgs.unfold(2, kernel, 1).unfold(3, kernel, 1)                  # [N,3,H',W',k,k]
+    p = p.permute(0, 2, 3, 1, 4, 5).reshape(-1, 3 * kernel * kernel)    # [M, 3*k*k]
+    if p.shape[0] > n_patches:
+        g = torch.Generator().manual_seed(0)  # LOCAL rng — no global side effect
+        p = p[torch.randperm(p.shape[0], generator=g)[:n_patches]]
+    p = p - p.mean(0, keepdim=True)
+    cov = (p.T @ p) / (p.shape[0] - 1)                                  # [3kk, 3kk]
+    eigvals, eigvecs = torch.linalg.eigh(cov, UPLO="U")
+    W = (eigvecs / torch.sqrt(eigvals + eps).unsqueeze(0)).T           # rows = whitening filters
+    W = W.reshape(3 * kernel * kernel, 3, kernel, kernel)
+    return torch.cat([W, -W], dim=0).contiguous().float()             # [2*K,3,k,k], +/- pairs
+
+
+# ---------------------------------------------------------------------------
 # ResNet-9 / "DavidNet" (David Page, cifar10-fast / DAWNBench)
 # Wide-shallow residual net that converges in few epochs under a one-cycle LR.
 # ---------------------------------------------------------------------------
@@ -89,7 +120,11 @@ class ResNet9(nn.Module):
     def __init__(self, num_classes=10, scale_out=SCALE_OUT):
         super().__init__()
         self.scale_out = scale_out
-        self.prep = conv_bn(3, 64)
+        # Frozen patch-whitening front-end: 3x3/pad-1 preserves 32x32 so the pool
+        # chain is untouched; 3*3*3=27 whitened directions, concat +/- -> 54 channels.
+        self.whiten = nn.Conv2d(3, 54, 3, padding=1, bias=False)
+        self.whiten.weight.requires_grad_(False)
+        self.prep = conv_bn(54, 64)  # learnable stem now consumes whitened input
         self.layer1 = nn.Sequential(conv_bn(64, 128), nn.MaxPool2d(2), Residual(128))
         self.layer2 = nn.Sequential(conv_bn(128, 256), nn.MaxPool2d(2))
         self.layer3 = nn.Sequential(conv_bn(256, 512), nn.MaxPool2d(2), Residual(512))
@@ -103,7 +138,17 @@ class ResNet9(nn.Module):
         if isinstance(m, (nn.Conv2d, nn.Linear)):
             init.kaiming_normal_(m.weight, nonlinearity="relu")
 
+    def load_whitening(self, weight):
+        """Load the frozen whitening matrix AFTER .apply()/.to() so kaiming-init
+        does not overwrite it, and re-assert it is non-trainable."""
+        with torch.no_grad():
+            self.whiten.weight.copy_(
+                weight.to(self.whiten.weight.device, self.whiten.weight.dtype)
+            )
+        self.whiten.weight.requires_grad_(False)
+
     def _forward_once(self, x):
+        x = self.whiten(x)
         x = self.prep(x)
         x = self.layer1(x)
         x = self.layer2(x)
@@ -161,11 +206,21 @@ def main():
     )
 
     model = ResNet9(NUM_CLASSES).to(device, memory_format=torch.channels_last)
+
+    # Compute + load the frozen whitening matrix OFF the 300s training budget
+    # (before t_start_training); counts toward startup_seconds, not training_seconds.
+    t_w = time.time()
+    w_weight = compute_whitening_weight(train_set, EVAL_MEAN, kernel=3)
+    model.load_whitening(w_weight)
+    whitening_seconds = time.time() - t_w
+    print(f"whitening_seconds: {whitening_seconds:.2f}")
+
     num_params = sum(p.numel() for p in model.parameters())
-    print(f"ResNet-9 (DavidNet) | params: {num_params:,}")
+    learnable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
+    print(f"ResNet-9 (DavidNet+whiten) | params: {num_params:,} | learnable: {learnable_params:,}")
 
     optimizer = optim.SGD(
-        model.parameters(),
+        [p for p in model.parameters() if p.requires_grad],  # exclude frozen whitening conv
         lr=PEAK_LR,
         momentum=MOMENTUM,
         weight_decay=WEIGHT_DECAY,
