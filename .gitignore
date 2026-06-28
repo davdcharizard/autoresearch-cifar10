@@ -231,3 +231,6 @@ __marimo__/
 .codex/agents/idea-developer.toml
 .codex/agents/idea-critic.toml
 .codex/agents/plan-critic.toml
+
+# CIFAR-10 dataset (downloaded at runtime)
+data/
