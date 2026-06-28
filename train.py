@@ -6,6 +6,7 @@ import torch.nn as nn
 import torch.nn.init as init
 import torch.nn.functional as F
 import torch.optim as optim
+from torch.optim.swa_utils import AveragedModel, get_ema_multi_avg_fn
 from torch.utils.data import DataLoader
 from torchvision import datasets, transforms
 
@@ -24,6 +25,9 @@ LABEL_SMOOTHING = 0.2
 PCT_START = 0.15  # fraction of the time budget spent ramping LR 0 -> PEAK_LR
 SCALE_OUT = 0.125  # logit scaling (DavidNet: "output scale is important")
 MAX_STEPS = 1_000_000  # high guard; the 300s time budget is the real terminator
+EMA_DECAY = 0.998  # short-horizon weight EMA (denoised low-LR-tail average)
+EMA_WARMUP_FRAC = 0.15  # start EMA once LR ramp completes (matches PCT_START)
+TTA_START_FRAC = 0.8  # eval-time flip-TTA only in the final 20% of the budget
 evaluator = Eval()
 
 # Normalization MUST match the frozen eval harness in prepare.py (Eval.__init__).
@@ -91,6 +95,7 @@ class ResNet9(nn.Module):
         self.layer3 = nn.Sequential(conv_bn(256, 512), nn.MaxPool2d(2), Residual(512))
         self.pool = nn.MaxPool2d(4)
         self.fc = nn.Linear(512, num_classes, bias=False)
+        self.tta = False  # eval-time horizontal-flip TTA (gated on by the loop)
         self.apply(self._weights_init)
 
     @staticmethod
@@ -98,13 +103,20 @@ class ResNet9(nn.Module):
         if isinstance(m, (nn.Conv2d, nn.Linear)):
             init.kaiming_normal_(m.weight, nonlinearity="relu")
 
-    def forward(self, x):
+    def _forward_once(self, x):
         x = self.prep(x)
         x = self.layer1(x)
         x = self.layer2(x)
         x = self.layer3(x)
         x = self.pool(x).flatten(1)
         return self.fc(x) * self.scale_out
+
+    def forward(self, x):
+        # Training (and eval before the tail) uses a single forward. In eval with
+        # TTA enabled, average logits over the image and its horizontal mirror.
+        if self.training or not self.tta:
+            return self._forward_once(x)
+        return 0.5 * (self._forward_once(x) + self._forward_once(x.flip(-1)))
 
 
 # ---------------------------------------------------------------------------
@@ -160,8 +172,17 @@ def main():
         nesterov=True,
     )
     criterion = nn.CrossEntropyLoss(label_smoothing=LABEL_SMOOTHING)
+
+    # Weight EMA of the raw model (params + BN buffers averaged with EMA_DECAY).
+    # Evaluated each epoch in place of the raw iterate once warmup completes.
+    ema_model = AveragedModel(
+        model, multi_avg_fn=get_ema_multi_avg_fn(EMA_DECAY), use_buffers=True
+    ).to(device, memory_format=torch.channels_last)
+    ema_started = False
+
     print(f"Time budget: {TIME_BUDGET_S}s")
     print(f"Batches per epoch: {len(train_loader)}")
+    print(f"EMA decay: {EMA_DECAY} (warmup {EMA_WARMUP_FRAC}) | flip-TTA from {TTA_START_FRAC}")
 
     # ---------------------------------------------------------------------------
     # Training loop (time-budgeted)
@@ -205,6 +226,12 @@ def main():
             loss.backward()
             optimizer.step()
 
+            # Update the weight EMA once the LR ramp has completed. `progress` is
+            # the same time-based value used for the LR schedule above.
+            if progress >= EMA_WARMUP_FRAC:
+                ema_model.update_parameters(model)
+                ema_started = True
+
             torch.cuda.synchronize()
             dt = time.time() - t0
             total_training_time += dt
@@ -231,7 +258,18 @@ def main():
             if total_training_time >= TIME_BUDGET_S or step >= MAX_STEPS:
                 break
 
-        test_loss, test_acc = evaluator.evaluate(model, device)
+        # Evaluate the EMA weights once warmup has begun, else the raw model.
+        # Enable flip-TTA only in the final TTA_START_FRAC of the budget, where
+        # the gain concentrates, to bound the extra eval wall-clock.
+        eval_progress = min(1.0, total_training_time / TIME_BUDGET_S)
+        use_tta = eval_progress >= TTA_START_FRAC
+        if ema_started:
+            ema_model.module.tta = use_tta
+            eval_target = ema_model
+        else:
+            model.tta = use_tta  # eval_progress < EMA_WARMUP_FRAC here, so False
+            eval_target = model
+        test_loss, test_acc = evaluator.evaluate(eval_target, device)
 
         if test_acc > best_acc:
             best_acc = test_acc
