@@ -116,6 +116,27 @@ class Residual(nn.Module):
         return x + self.c2(self.c1(x))
 
 
+class GatedResidual(nn.Module):
+    """ReZero-gated residual (Bachlechner et al. 2020, arXiv:2003.04887).
+
+    `alpha` is a learnable scalar initialized to 0, so the block is EXACT
+    identity at init (deeper net starts bit-equivalent to the proven net), yet
+    dL/d alpha = <grad_out, c2(c1(x))> != 0 keeps a live gradient path so the
+    block trains and ramps its capacity in gradually. (A zeroed final-BN gamma
+    would NOT work here: conv_bn ends in ReLU, and ReLU'(0)=0 kills the gradient,
+    leaving the block dead/identity forever.)
+    """
+
+    def __init__(self, c):
+        super().__init__()
+        self.c1 = conv_bn(c, c)
+        self.c2 = conv_bn(c, c)
+        self.alpha = nn.Parameter(torch.zeros(1))
+
+    def forward(self, x):
+        return x + self.alpha * self.c2(self.c1(x))
+
+
 class ResNet9(nn.Module):
     def __init__(self, num_classes=10, scale_out=SCALE_OUT):
         super().__init__()
@@ -126,7 +147,7 @@ class ResNet9(nn.Module):
         self.whiten.weight.requires_grad_(False)
         self.prep = conv_bn(54, 64)  # learnable stem now consumes whitened input
         self.layer1 = nn.Sequential(conv_bn(64, 128), nn.MaxPool2d(2), Residual(128))
-        self.layer2 = nn.Sequential(conv_bn(128, 256), nn.MaxPool2d(2))
+        self.layer2 = nn.Sequential(conv_bn(128, 256), nn.MaxPool2d(2), GatedResidual(256))
         self.layer3 = nn.Sequential(conv_bn(256, 512), nn.MaxPool2d(2), Residual(512))
         self.pool = nn.MaxPool2d(4)
         self.fc = nn.Linear(512, num_classes, bias=False)
