@@ -27,6 +27,8 @@ MOMENTUM = 0.9
 WEIGHT_DECAY = 5e-4
 MAX_STEPS = 64000
 EVAL_EVERY = 5
+MIXUP_ALPHA = 0.2
+MIXUP_END_FRACTION = 0.65
 evaluator = Eval()
 
 
@@ -115,6 +117,13 @@ def learning_rate(training_time):
     )
 
 
+def mixup_batch(inputs, targets, distribution):
+    mix = distribution.sample()
+    permutation = torch.randperm(inputs.size(0), device=inputs.device)
+    mixed_inputs = mix * inputs + (1.0 - mix) * inputs[permutation]
+    return mixed_inputs, targets, targets[permutation], mix
+
+
 # ---------------------------------------------------------------------------
 # Training & evaluation
 # ---------------------------------------------------------------------------
@@ -176,6 +185,10 @@ def main():
         momentum=MOMENTUM,
         nesterov=True,
     )
+    mixup_distribution = torch.distributions.Beta(
+        torch.tensor(MIXUP_ALPHA, device=device),
+        torch.tensor(MIXUP_ALPHA, device=device),
+    )
     print(f"Time budget: {TIME_BUDGET_S}s")
     print(f"Batches per epoch: {len(train_loader)}")
 
@@ -189,6 +202,7 @@ def main():
     epoch = 0
     step = 0
     best_acc = 0.0
+    mixup_enabled = True
 
     while total_training_time < TIME_BUDGET_S and step < MAX_STEPS:
         epoch += 1
@@ -203,9 +217,28 @@ def main():
             for group in optimizer.param_groups:
                 group["lr"] = lr
 
+            progress = min(total_training_time / TIME_BUDGET_S, 1.0)
+            use_mixup = progress < MIXUP_END_FRACTION
+            if mixup_enabled and not use_mixup:
+                mixup_enabled = False
+                print(
+                    f"\nMixup disabled at ep {epoch} step {step} | "
+                    f"training_seconds={total_training_time:.1f} "
+                    f"({100 * progress:.1f}%) | lr={lr:.4f}"
+                )
+
             optimizer.zero_grad(set_to_none=True)
-            outputs = model(inputs)
-            loss = F.cross_entropy(outputs, targets)
+            if use_mixup:
+                mixed_inputs, targets_a, targets_b, mix = mixup_batch(
+                    inputs, targets, mixup_distribution
+                )
+                outputs = model(mixed_inputs)
+                loss = mix * F.cross_entropy(outputs, targets_a) + (
+                    1.0 - mix
+                ) * F.cross_entropy(outputs, targets_b)
+            else:
+                outputs = model(inputs)
+                loss = F.cross_entropy(outputs, targets)
             if not torch.isfinite(loss):
                 raise RuntimeError(f"Non-finite loss at step {step}: {loss.item()}")
             loss.backward()
