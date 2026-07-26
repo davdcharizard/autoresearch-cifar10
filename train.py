@@ -1,5 +1,6 @@
 import gc
 import math
+import multiprocessing
 import time
 
 import torch
@@ -16,7 +17,7 @@ from prepare import DATASET_DIR, NUM_WORKERS, TIME_BUDGET_S, Eval
 # Hyperparameters (edit these directly)
 # ---------------------------------------------------------------------------
 
-NUM_BLOCKS = 2  # WRN-16 = 6*2+4
+STAGE_BLOCKS = (2, 2, 3)
 WIDEN_FACTOR = 2
 NUM_CLASSES = 10
 BATCH_SIZE = 256
@@ -29,11 +30,55 @@ MAX_STEPS = 64000
 EVAL_EVERY = 5
 MIXUP_ALPHA = 0.2
 MIXUP_END_FRACTION = 0.65
+RANDAUGMENT_END_FRACTION = 0.65
 evaluator = Eval()
 
 
 # ---------------------------------------------------------------------------
-# Pre-activation WRN-16-2 for CIFAR-10
+# Data augmentation
+# ---------------------------------------------------------------------------
+
+
+class EarlyRandAugment:
+    def __init__(self, active):
+        self.active = active
+        self._randaugment_rng_state = None
+        self.transform = transforms.RandAugment(
+            num_ops=1,
+            magnitude=5,
+            num_magnitude_bins=31,
+            interpolation=transforms.InterpolationMode.BILINEAR,
+            fill=[125, 123, 114],
+        )
+
+    def __call__(self, image):
+        if not self.active.value:
+            return image
+        accepted_rng_state = torch.random.get_rng_state()
+        if self._randaugment_rng_state is None:
+            self._randaugment_rng_state = accepted_rng_state.clone()
+        torch.random.set_rng_state(self._randaugment_rng_state)
+        try:
+            return self.transform(image)
+        finally:
+            self._randaugment_rng_state = torch.random.get_rng_state()
+            torch.random.set_rng_state(accepted_rng_state)
+
+
+def make_train_transform(randaugment_active=None):
+    mean, std = ((0.4914, 0.4822, 0.4465), (1, 1, 1))
+    operations = [
+        transforms.RandomCrop(32, padding=4),
+        transforms.RandomHorizontalFlip(),
+    ]
+    if randaugment_active is not None:
+        operations.append(EarlyRandAugment(randaugment_active))
+    operations.extend([transforms.ToTensor(), transforms.Normalize(mean, std)])
+    return transforms.Compose(operations)
+
+
+# ---------------------------------------------------------------------------
+# Pre-activation WRN for CIFAR-10
 # ---------------------------------------------------------------------------
 
 
@@ -63,13 +108,23 @@ class PreActBlock(nn.Module):
 
 
 class WideResNet(nn.Module):
-    def __init__(self, num_blocks, widen_factor, num_classes=10):
+    def __init__(self, stage_blocks, widen_factor, num_classes=10):
         super().__init__()
+        if (
+            not isinstance(stage_blocks, tuple)
+            or len(stage_blocks) != 3
+            or any(type(count) is not int or count <= 0 for count in stage_blocks)
+        ):
+            raise ValueError("stage_blocks must be three positive integers")
         widths = [16 * widen_factor, 32 * widen_factor, 64 * widen_factor]
         self.conv1 = nn.Conv2d(3, 16, 3, stride=1, padding=1, bias=False)
-        self.layer1 = self._make_layer(16, widths[0], num_blocks, stride=1)
-        self.layer2 = self._make_layer(widths[0], widths[1], num_blocks, stride=2)
-        self.layer3 = self._make_layer(widths[1], widths[2], num_blocks, stride=2)
+        self.layer1 = self._make_layer(16, widths[0], stage_blocks[0], stride=1)
+        self.layer2 = self._make_layer(
+            widths[0], widths[1], stage_blocks[1], stride=2
+        )
+        self.layer3 = self._make_layer(
+            widths[1], widths[2], stage_blocks[2], stride=2
+        )
         self.bn = nn.BatchNorm2d(widths[2])
         self.fc = nn.Linear(widths[2], num_classes)
         self.apply(self._weights_init)
@@ -142,18 +197,9 @@ def main():
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Device: {device}")
 
-    mean, std = (
-        (0.4914, 0.4822, 0.4465),
-        (1, 1, 1),
-    )  # Yes original paper only mention per-pixel mean and this is per band. See README
-    train_tf = transforms.Compose(
-        [
-            transforms.RandomCrop(32, padding=4),
-            transforms.RandomHorizontalFlip(),
-            transforms.ToTensor(),
-            transforms.Normalize(mean, std),
-        ]
-    )
+    mp_context = multiprocessing.get_context()
+    randaugment_active = mp_context.Value("b", 1, lock=False)
+    train_tf = make_train_transform(randaugment_active)
 
     train_set = datasets.CIFAR10(
         DATASET_DIR, train=True, download=True, transform=train_tf
@@ -166,12 +212,15 @@ def main():
         pin_memory=True,
         drop_last=True,
         persistent_workers=True,
+        prefetch_factor=2,
+        multiprocessing_context=mp_context,
     )
 
-    model = WideResNet(NUM_BLOCKS, WIDEN_FACTOR, NUM_CLASSES).to(device)
+    model = WideResNet(STAGE_BLOCKS, WIDEN_FACTOR, NUM_CLASSES).to(device)
     num_params = sum(p.numel() for p in model.parameters())
     print(
-        f"WRN-{6 * NUM_BLOCKS + 4}-{WIDEN_FACTOR} | params: {num_params:,}"
+        f"WRN widths=[32,64,128] blocks={list(STAGE_BLOCKS)} | "
+        f"params: {num_params:,}"
     )
 
     decay_params = [p for p in model.parameters() if p.requires_grad and p.ndim >= 2]
@@ -203,6 +252,7 @@ def main():
     step = 0
     best_acc = 0.0
     mixup_enabled = True
+    randaugment_enabled = True
 
     while total_training_time < TIME_BUDGET_S and step < MAX_STEPS:
         epoch += 1
@@ -271,6 +321,20 @@ def main():
                 break
 
         budget_exhausted = total_training_time >= TIME_BUDGET_S or step >= MAX_STEPS
+        if (
+            randaugment_enabled
+            and not budget_exhausted
+            and total_training_time >= RANDAUGMENT_END_FRACTION * TIME_BUDGET_S
+        ):
+            randaugment_active.value = 0
+            randaugment_enabled = False
+            progress = min(total_training_time / TIME_BUDGET_S, 1.0)
+            print(
+                f"\nRandAugment disabled at ep {epoch} step {step} | "
+                f"training_seconds={total_training_time:.1f} "
+                f"({100 * progress:.1f}%) | iterator_exhausted=true"
+            )
+
         if epoch % EVAL_EVERY == 0 or budget_exhausted:
             test_loss, test_acc = evaluator.evaluate(model, device)
 
