@@ -31,6 +31,9 @@ EVAL_EVERY = 5
 MIXUP_ALPHA = 0.2
 MIXUP_END_FRACTION = 0.65
 RANDAUGMENT_END_FRACTION = 0.65
+POOLED_HEAD_WIDTH = 64
+POOLED_HEAD_SCALE = 0.1
+POOLED_HEAD_INIT_SEED = 36036
 evaluator = Eval()
 
 
@@ -128,6 +131,15 @@ class WideResNet(nn.Module):
         self.bn = nn.BatchNorm2d(widths[2])
         self.fc = nn.Linear(widths[2], num_classes)
         self.apply(self._weights_init)
+        with torch.random.fork_rng(devices=[]):
+            torch.random.default_generator.manual_seed(POOLED_HEAD_INIT_SEED)
+            self.pooled_head = nn.Sequential(
+                nn.Linear(widths[2], POOLED_HEAD_WIDTH, bias=False),
+                nn.ReLU(),
+                nn.Linear(POOLED_HEAD_WIDTH, widths[2], bias=False),
+            )
+            init.kaiming_normal_(self.pooled_head[0].weight)
+            init.kaiming_normal_(self.pooled_head[2].weight)
 
     @staticmethod
     def _weights_init(m):
@@ -157,6 +169,7 @@ class WideResNet(nn.Module):
         out = F.relu(self.bn(out))
         out = F.adaptive_avg_pool2d(out, 1)
         out = out.view(out.size(0), -1)
+        out = out + POOLED_HEAD_SCALE * self.pooled_head(out)
         return self.fc(out)
 
 
