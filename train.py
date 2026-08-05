@@ -31,6 +31,10 @@ CUTMIX_PROB = 0.5
 CUTMIX_ALPHA = 1.0
 CUTMIX_END = 0.75
 CUTMIX_SEED = 42
+SAM_RHO = 0.05
+SAM_START = 0.75
+SAM_PERIOD = 2
+SAM_EPS = 1e-12
 evaluator = Eval()
 
 
@@ -158,6 +162,41 @@ def drop_path_scale(progress):
     return max(0.0, (1.0 - progress) / (1.0 - DROP_PATH_DECAY_START))
 
 
+def sam_is_scheduled(progress, next_step):
+    return progress >= SAM_START and next_step % SAM_PERIOD == 0
+
+
+@torch.no_grad()
+def sam_perturb(parameters, snapshots):
+    gradients = [parameter.grad for parameter in parameters]
+    if any(gradient is None for gradient in gradients):
+        raise RuntimeError("SAM requires a gradient for every trainable parameter")
+
+    grad_norm = torch.linalg.vector_norm(
+        torch.stack([gradient.detach().float().norm(2) for gradient in gradients])
+    )
+    grad_norm_f = grad_norm.item()
+    if not math.isfinite(grad_norm_f) or grad_norm_f <= 0.0:
+        raise RuntimeError(f"invalid SAM gradient norm: {grad_norm_f}")
+
+    torch._foreach_copy_(snapshots, parameters)
+    try:
+        torch._foreach_add_(
+            parameters,
+            gradients,
+            alpha=SAM_RHO / (grad_norm_f + SAM_EPS),
+        )
+    except Exception:
+        torch._foreach_copy_(parameters, snapshots)
+        raise
+    return grad_norm_f
+
+
+@torch.no_grad()
+def restore_sam_parameters(parameters, snapshots):
+    torch._foreach_copy_(parameters, snapshots)
+
+
 def cutmix_batch(
     inputs,
     targets,
@@ -251,7 +290,8 @@ def main():
         f"warmup_fraction={WARMUP_FRACTION} "
         f"max_drop_path={MAX_DROP_PATH} eval_every={EVAL_EVERY} "
         f"cutmix_prob={CUTMIX_PROB} cutmix_alpha={CUTMIX_ALPHA} "
-        f"cutmix_end={CUTMIX_END} cutmix_seed={CUTMIX_SEED}"
+        f"cutmix_end={CUTMIX_END} cutmix_seed={CUTMIX_SEED} "
+        f"sam_rho={SAM_RHO} sam_start={SAM_START} sam_period={SAM_PERIOD}"
     )
 
     optimizer = optim.SGD(
@@ -265,6 +305,16 @@ def main():
     print(f"Batches per epoch: {len(train_loader)}")
     cutmix_cpu_generator = torch.Generator().manual_seed(CUTMIX_SEED)
     cutmix_cuda_generator = torch.Generator(device=device).manual_seed(CUTMIX_SEED)
+    sam_parameters = [parameter for parameter in model.parameters() if parameter.requires_grad]
+    sam_snapshots = [
+        torch.empty_like(parameter, memory_format=torch.preserve_format)
+        for parameter in sam_parameters
+    ]
+    batch_norm_modules = [
+        module
+        for module in model.modules()
+        if isinstance(module, nn.modules.batchnorm._BatchNorm)
+    ]
 
     # -----------------------------------------------------------------------
     # Training loop (time-budgeted)
@@ -280,6 +330,10 @@ def main():
     test_acc = float("nan")
     cutmix_eligible_batches = 0
     cutmix_applied_batches = 0
+    sam_eligible_batches = 0
+    sam_applied_batches = 0
+    sam_first_step = None
+    sam_first_progress = None
 
     while total_training_time < TIME_BUDGET_S:
         epoch += 1
@@ -288,6 +342,8 @@ def main():
         for inputs, targets in train_loader:
             t0 = time.time()
             progress = min(total_training_time / TIME_BUDGET_S, 1.0)
+            next_step = step + 1
+            apply_sam = sam_is_scheduled(progress, next_step)
             lr = learning_rate(progress)
             current_drop_scale = drop_path_scale(progress)
             for param_group in optimizer.param_groups:
@@ -303,6 +359,8 @@ def main():
             targets_a = targets
             targets_b = None
             adjusted_lam = 1.0
+            if progress >= SAM_START:
+                sam_eligible_batches += 1
             if progress < CUTMIX_END:
                 cutmix_eligible_batches += 1
                 apply_cutmix = (
@@ -317,6 +375,11 @@ def main():
                     )
                     cutmix_applied_batches += 1
 
+            if apply_sam and targets_b is not None:
+                raise RuntimeError("SAM and CutMix must not overlap")
+
+            cuda_rng_state = torch.cuda.get_rng_state(device) if apply_sam else None
+
             optimizer.zero_grad(set_to_none=True)
             with torch.autocast(
                 device_type=device.type,
@@ -330,7 +393,48 @@ def main():
                     loss = adjusted_lam * F.cross_entropy(outputs, targets_a)
                     loss += (1.0 - adjusted_lam) * F.cross_entropy(outputs, targets_b)
             loss.backward()
+
+            if apply_sam:
+                sam_perturb(sam_parameters, sam_snapshots)
+                parameters_perturbed = True
+                bn_tracking_disabled = False
+                batch_norm_tracking = []
+                try:
+                    optimizer.zero_grad(set_to_none=True)
+                    torch.cuda.set_rng_state(cuda_rng_state, device)
+                    batch_norm_tracking = [
+                        module.track_running_stats for module in batch_norm_modules
+                    ]
+                    for module in batch_norm_modules:
+                        module.track_running_stats = False
+                    bn_tracking_disabled = True
+
+                    with torch.autocast(
+                        device_type=device.type,
+                        dtype=torch.bfloat16,
+                        enabled=device.type == "cuda",
+                    ):
+                        outputs = model(inputs, drop_scale=current_drop_scale)
+                        loss = F.cross_entropy(outputs, targets)
+                    loss.backward()
+                finally:
+                    if bn_tracking_disabled:
+                        for module, tracking in zip(
+                            batch_norm_modules,
+                            batch_norm_tracking,
+                            strict=True,
+                        ):
+                            module.track_running_stats = tracking
+                    if parameters_perturbed:
+                        restore_sam_parameters(sam_parameters, sam_snapshots)
+
             optimizer.step()
+
+            if apply_sam:
+                sam_applied_batches += 1
+                if sam_first_step is None:
+                    sam_first_step = next_step
+                    sam_first_progress = progress
 
             if device.type == "cuda":
                 torch.cuda.synchronize()
@@ -356,6 +460,7 @@ def main():
                     f"loss: {debiased:.4f} | lr: {lr:.4f} | "
                     f"drop: {effective_drop:.3f} | dt: {dt * 1000:.0f}ms | "
                     f"mix: {cutmix_applied_batches}/{cutmix_eligible_batches} | "
+                    f"sam: {sam_applied_batches}/{sam_eligible_batches} | "
                     f"img/s: {img_per_sec:,} | rem: {remaining:.0f}s    ",
                     end="",
                     flush=True,
@@ -393,10 +498,16 @@ def main():
         torch.cuda.max_memory_allocated() / 1024 / 1024 if device.type == "cuda" else 0
     )
     cutmix_ratio = cutmix_applied_batches / max(cutmix_eligible_batches, 1)
+    sam_ratio = sam_applied_batches / max(sam_eligible_batches, 1)
 
     print(
         f"cutmix: applied={cutmix_applied_batches} "
         f"eligible={cutmix_eligible_batches} ratio={cutmix_ratio:.4f}"
+    )
+    print(
+        f"sam: applied={sam_applied_batches} eligible={sam_eligible_batches} "
+        f"ratio={sam_ratio:.4f} first_step={sam_first_step or -1} "
+        f"first_progress={sam_first_progress if sam_first_progress is not None else -1:.4f}"
     )
     print("---")
     print(f"best_test_acc:    {best_acc:.2f}%")
