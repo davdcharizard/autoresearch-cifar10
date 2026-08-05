@@ -1,0 +1,8 @@
+=== cA nvidia-smi before ===
+index, utilization.gpu [%], memory.used [MiB]
+0, 0 %, 3391 MiB
+1, 3 %, 3843 MiB
+=== cA nvidia-smi after ===
+index, utilization.gpu [%], memory.used [MiB]
+0, 0 %, 3391 MiB
+1, 0 %, 3843 MiB

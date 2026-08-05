@@ -1,0 +1,41 @@
+# Report EXP-021: Compile-funded DEPTH at the 8×8 stage (2nd ReZero GatedResidual @ layer2)
+- **Created**: 2026-06-30
+
+## Goal
+Maximize CIFAR-10 `best_test_acc` (%, higher is better) within the fixed 300s training budget, editing only `train.py`. Baseline 96.38 (EXP-008, commit 07c3760). Improvement bar: ≥ 96.48 (baseline + 0.1pp) AND clearly above the same-session control beyond the ~0.1–0.2pp noise floor, replicated on a confirmation re-run.
+
+## Idea & Hypothesis
+Chosen idea (Codex idea-review pick, 7/10 impact): add representational DEPTH at the proven 8×8 stage — one identity-initialized ReZero `GatedResidual(256)` appended to `layer2` — and fund its per-step cost with the EXP-014-validated, math-equivalent torch.compile +12% throughput so the deeper net still fully anneals. This is the only architectural axis with a positive prior (EXP-004: the first GatedResidual@layer2 was the lone architectural win) AND direct external corroboration (airbench's 95→96 step is literally "add a third convolution to each block"). EXP-014's "generalization ceiling, not capacity" verdict tested epochs and WIDTH but never DEPTH, which changes the function class. Hypothesis: compile-funded depth raises `best_test_acc` to ≥96.48 and beats its same-session compiled control by >0.1pp, replicated — because added nonlinear composition at the proven full-speed stage reaches a lever the saturated width/epoch/regularization axes could not.
+
+## Approach
+Single-file change in `train.py`, env-gated so the default reproduces baseline: (1) `ResNet9(extra_depth=)` appends one `GatedResidual(256)` to `layer2`; (2) **RNG-isolated init** — build the base layer2/layer3/fc identically to the no-depth net, construct the extra block under `torch.random.fork_rng` and `.append()` it after fc, then init shared leaves via a `modules()` loop (skipping the extra block) and the extra block under a second `fork_rng`, so c0 and cA share all common weights AND the identical DataLoader-shuffle/aug stream — cA−c0 isolates DEPTH alone; (3) the EXP-014 torch.compile recipe (separate `train_fwd` handle, uncompiled model/EMA/eval, off-budget BN-snapshot warmup). Both official cells ran compiled+warmed (`USE_COMPILE=1 WARMUP=1`), DEPTH toggled. A Milestone-2 throughput sizing gate (ratio 0.893 → predicted ~154 ep > the 135-ep floor) cleared the full block before the official run. Per plan-review, no single-conv fallback was verdict-eligible; the confirmation pair was specified reversed-order; run logs went to /tmp.
+
+## Execution
+- **Smokes**: 8/8 correctness checks PASS, including shared-param bit-equality + post-init RNG-stream identity (the RNG-isolation fix). First attempt failed those checks — root cause: constructing the extra block inline in `layer2` consumed main-stream RNG at construction time, shifting layer3/fc init; fixed by building it under `fork_rng` and appending after fc.
+- **GPU-1 contention (the dominant execution event)**: GPU 1 was aggressively borrowed by churning foreign jobs (~10–12 GB, 100% util). The first official launch ran c0 at ~12.6k img/s (half the clean rate → ~76-ep under-anneal); killed it. Built `/tmp/exp021_orchestrate.sh` — a retry-until-clean loop (wait for no foreign >5GB job + util<30; launch the pair; monitor every 20s and abort+retry on a foreign >5GB job OR img/s<20k). It caught a clean window on attempt 1 once the foreign job exited.
+- **Clean same-session pair**: c0 (compiled, no-depth) 173 ep — exactly EXP-014's clean compiled control (173 ep), confirming uncontended throughput — then cA (compiled, depth) 152 ep. Both fully annealed, no recompile leak (cA first-step-dt steady 20–24ms).
+
+## Results
+- **Primary metric**: cA (compiled depth) = 96.26 vs baseline 96.38 (delta −0.12), and vs the **same-session** compiled control c0 = 96.29 → **−0.03pp** (tie, marginally below). Below the 96.48 floor.
+- **Observations**: The depth block was correctly added (+1,180,673 params = exactly one GatedResidual(256); identity-init verified bit-exact). It cost ~12% throughput (173→152 ep, ratio 0.877 ≈ the 0.893 sizing estimate) — funded by compile to a HEALTHY 152-epoch anneal (num_steps 14671 ≫ the 13095 floor; best 96.26 vs final 96.22 → peaked-then-settled, NOT still-rising). So this is a *properly-annealed* null, not under-anneal. c0's 96.29 is a normal control draw (matches EXP-014's compiled control 96.29/96.32), so the −0.03 is not a low-control artifact either.
+- **Analysis**: The intervention achieved its intended local effect (more nonlinear depth at the proven stage, fully annealed) but did NOT move test accuracy. This closes the loophole in EXP-014's ceiling diagnosis: that experiment showed more epochs and more WIDTH don't help; EXP-021 shows more DEPTH at the same proven 8×8 location, properly annealed, also doesn't. The function-class-depth bet is falsified for this net at 300s. EXP-004's historical depth win (adding the FIRST gated block, 95.87→96.00) was a one-time capacity gain on a then-smaller net; a SECOND block is redundant — the net is at a genuine generalization ceiling, not a capacity/anneal limit, across both capacity dimensions.
+- **Key Learning**: Compile-funded DEPTH at the proven 8×8 stage — the best-evidenced structural lever (airbench 95→96 + EXP-004) — ties the same-session control at full 152-ep anneal; within-DavidNet capacity is now exhausted on BOTH width (EXP-014) and depth (EXP-021).
+
+## Verification
+- **Conditions**: NC1 PASS (both cells 300.0s, <600s wall, 0 nan/inf). NC3 PASS (only train.py; prepare.py byte-clean; seed intact; 1 eval/epoch; per-epoch best==reported best; cA num_steps 14671 ≥ 13095 anneal floor; +1.18M params exact). NC2 FAIL (cA 96.26 < 96.48 AND < c0+0.1pp=96.39; cA−c0=−0.03pp). Contention guard PASS (clean session, c0 173 ep = EXP-014 clean band).
+- **Review Notes**: Results trustworthy. The two-fork RNG-isolation makes c0/cA differ ONLY by the identity block (shared weights + data stream bit-identical, smoke-verified), so the −0.03 is a clean depth measurement, not init/seed noise. Properly annealed → conclusive, not inconclusive.
+- **Verdict**: no-improvement
+- **Verdict Basis**: valid, clean, properly-annealed result; NC2 result-quality gate failed (metric below floor AND tied the control). No hard-constraint violation → not invalid.
+
+## Unexplored Avenues
+- **Depth at a DIFFERENT location or as a 3rd-conv-per-block** (airbench-faithful: a third conv in EACH ConvGroup, not just layer2): untried, but the prior is now poor — EXP-005 (depth at 4×4/layer3) hurt, EXP-021 (2nd block at 8×8) ties, EXP-007/014 (width) saturated. The within-DavidNet capacity surface is mapped and flat. Low confidence.
+- **Depth + a higher PEAK_LR or GELU** (airbench pairs depth with GELU): a deeper net might want different optimization, but this confounds the depth test and the base levers are saturated. Low confidence.
+- **The real unexplored avenue is a wholesale DIFFERENT backbone** (not a DavidNet micro-lever) — see Next Steps. The banked, now-twice-validated torch.compile +12% recipe (clean c0 hit 173 ep again) is ready to fund a new backbone's per-step cost.
+
+## Next Steps
+- **Pivot to a structurally different backbone** (high confidence this is the only remaining direction): 16 straight nulls now span capacity-width, capacity-depth, optimizer, all 3 input-aug mechanisms, reg-scalars, SAM, throughput/epochs, BN-noise, downsampling, channel-attention, and schedule-shape. Every within-DavidNet lever is exhausted. Candidate backbones that plausibly raise the ceiling at 300s: a pre-activation ResNet, a wider-2-stage / pyramidal net, or an attention-augmented stem — funded by the banked compile +12%.
+- **If staying within reach of the current recipe** (medium confidence, lower EV): the airbench-faithful "3rd conv in every block" (broader depth, not just layer2) is the one depth variant not directly tested, though EXP-021's clean null at 8×8 makes it likely-to-tie.
+- **Alternating/derandomized flip** (low-medium confidence, cheap): the EXP-021 idea-02 finalist — a throughput-free sampling-variance lever distinct from the saturated aug-content axis — remains a clean, cheap probe to run as a free rider, possibly on a new backbone.
+
+## Exit Action Results
+- No exit actions defined for this goal — skipped.

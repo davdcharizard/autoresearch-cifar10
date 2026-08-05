@@ -1,0 +1,299 @@
+Device: cuda
+whitening_seconds: 0.18
+ResNet-9 (DavidNet+whiten) | params: 7,784,627 | learnable: 7,783,169
+Time budget: 300s
+Batches per epoch: 97
+EMA decay: 0.998 (warmup 0.15) | flip-TTA from 0.8
+step 00050 ep 1 (3.0%) | loss: 1.9115 | lr: 0.0792 | dt: 21ms | img/s: 24,816 | rem: 291s    
+  eval ep   1 | test_loss: 1.2644 | test_acc: 56.16% | best: 56.16% | wall: 22s
+step 00100 ep 2 (3.3%) | loss: 1.6869 | lr: 0.0884 | dt: 21ms | img/s: 24,651 | rem: 290s    step 00150 ep 2 (3.7%) | loss: 1.5581 | lr: 0.0978 | dt: 21ms | img/s: 24,630 | rem: 289s    
+  eval ep   2 | test_loss: 0.9490 | test_acc: 68.08% | best: 68.08% | wall: 25s
+step 00200 ep 3 (4.0%) | loss: 1.4681 | lr: 0.1070 | dt: 21ms | img/s: 24,244 | rem: 288s    step 00250 ep 3 (4.4%) | loss: 1.4132 | lr: 0.1163 | dt: 21ms | img/s: 24,753 | rem: 287s    
+  eval ep   3 | test_loss: 0.8024 | test_acc: 76.42% | best: 76.42% | wall: 28s
+step 00300 ep 4 (4.7%) | loss: 1.3798 | lr: 0.1255 | dt: 21ms | img/s: 24,519 | rem: 286s    step 00350 ep 4 (5.1%) | loss: 1.3428 | lr: 0.1348 | dt: 21ms | img/s: 24,660 | rem: 285s    
+  eval ep   4 | test_loss: 0.7033 | test_acc: 80.23% | best: 80.23% | wall: 32s
+step 00400 ep 5 (5.4%) | loss: 1.3065 | lr: 0.1440 | dt: 21ms | img/s: 24,796 | rem: 284s    step 00450 ep 5 (5.8%) | loss: 1.2879 | lr: 0.1532 | dt: 21ms | img/s: 24,611 | rem: 283s    
+  eval ep   5 | test_loss: 0.7824 | test_acc: 78.13% | best: 80.23% | wall: 35s
+step 00500 ep 6 (6.1%) | loss: 1.2721 | lr: 0.1625 | dt: 21ms | img/s: 24,681 | rem: 282s    step 00550 ep 6 (6.4%) | loss: 1.2558 | lr: 0.1718 | dt: 21ms | img/s: 24,707 | rem: 281s    
+  eval ep   6 | test_loss: 0.6946 | test_acc: 81.11% | best: 81.11% | wall: 38s
+step 00600 ep 7 (6.8%) | loss: 1.2307 | lr: 0.1810 | dt: 21ms | img/s: 24,601 | rem: 280s    step 00650 ep 7 (7.1%) | loss: 1.2297 | lr: 0.1903 | dt: 21ms | img/s: 24,723 | rem: 279s    
+  eval ep   7 | test_loss: 0.7622 | test_acc: 78.23% | best: 81.11% | wall: 41s
+step 00700 ep 8 (7.5%) | loss: 1.2113 | lr: 0.1995 | dt: 21ms | img/s: 24,557 | rem: 278s    step 00750 ep 8 (7.8%) | loss: 1.2093 | lr: 0.2087 | dt: 21ms | img/s: 24,653 | rem: 276s    
+  eval ep   8 | test_loss: 0.6476 | test_acc: 84.35% | best: 84.35% | wall: 44s
+step 00800 ep 9 (8.2%) | loss: 1.1913 | lr: 0.2180 | dt: 21ms | img/s: 24,765 | rem: 275s    step 00850 ep 9 (8.5%) | loss: 1.1905 | lr: 0.2272 | dt: 21ms | img/s: 24,657 | rem: 274s    
+  eval ep   9 | test_loss: 0.6415 | test_acc: 83.75% | best: 84.35% | wall: 47s
+step 00900 ep 10 (8.9%) | loss: 1.1727 | lr: 0.2365 | dt: 21ms | img/s: 24,396 | rem: 273s    step 00950 ep 10 (9.2%) | loss: 1.1749 | lr: 0.2457 | dt: 21ms | img/s: 24,672 | rem: 272s    
+  eval ep  10 | test_loss: 0.6127 | test_acc: 82.18% | best: 84.35% | wall: 51s
+step 01000 ep 11 (9.6%) | loss: 1.1605 | lr: 0.2549 | dt: 21ms | img/s: 24,627 | rem: 271s    step 01050 ep 11 (9.9%) | loss: 1.1629 | lr: 0.2641 | dt: 21ms | img/s: 24,710 | rem: 270s    
+  eval ep  11 | test_loss: 0.5907 | test_acc: 84.78% | best: 84.78% | wall: 54s
+step 01100 ep 12 (10.3%) | loss: 1.1516 | lr: 0.2734 | dt: 21ms | img/s: 24,704 | rem: 269s    step 01150 ep 12 (10.6%) | loss: 1.1535 | lr: 0.2826 | dt: 21ms | img/s: 24,661 | rem: 268s    
+  eval ep  12 | test_loss: 0.5785 | test_acc: 85.79% | best: 85.79% | wall: 57s
+step 01200 ep 13 (11.0%) | loss: 1.1355 | lr: 0.2918 | dt: 21ms | img/s: 24,647 | rem: 267s    step 01250 ep 13 (11.3%) | loss: 1.1411 | lr: 0.3010 | dt: 21ms | img/s: 24,578 | rem: 266s    
+  eval ep  13 | test_loss: 0.6236 | test_acc: 83.35% | best: 85.79% | wall: 60s
+step 01300 ep 14 (11.6%) | loss: 1.1327 | lr: 0.3103 | dt: 21ms | img/s: 24,654 | rem: 265s    step 01350 ep 14 (12.0%) | loss: 1.1402 | lr: 0.3195 | dt: 21ms | img/s: 24,687 | rem: 264s    
+  eval ep  14 | test_loss: 0.6001 | test_acc: 86.66% | best: 86.66% | wall: 63s
+step 01400 ep 15 (12.3%) | loss: 1.1338 | lr: 0.3288 | dt: 21ms | img/s: 24,448 | rem: 263s    step 01450 ep 15 (12.7%) | loss: 1.1334 | lr: 0.3380 | dt: 21ms | img/s: 24,766 | rem: 262s    
+  eval ep  15 | test_loss: 0.6552 | test_acc: 82.29% | best: 86.66% | wall: 66s
+step 01500 ep 16 (13.0%) | loss: 1.1312 | lr: 0.3473 | dt: 21ms | img/s: 24,578 | rem: 261s    step 01550 ep 16 (13.4%) | loss: 1.1387 | lr: 0.3565 | dt: 21ms | img/s: 24,576 | rem: 260s    
+  eval ep  16 | test_loss: 0.7760 | test_acc: 78.65% | best: 86.66% | wall: 70s
+step 01600 ep 17 (13.7%) | loss: 1.1273 | lr: 0.3658 | dt: 21ms | img/s: 24,785 | rem: 259s    
+  eval ep  17 | test_loss: 0.5991 | test_acc: 84.86% | best: 86.66% | wall: 73s
+step 01650 ep 18 (14.1%) | loss: 1.1359 | lr: 0.3750 | dt: 21ms | img/s: 23,914 | rem: 258s    step 01700 ep 18 (14.4%) | loss: 1.1338 | lr: 0.3842 | dt: 21ms | img/s: 24,788 | rem: 257s    
+  eval ep  18 | test_loss: 0.8513 | test_acc: 76.75% | best: 86.66% | wall: 76s
+step 01750 ep 19 (14.8%) | loss: 1.1335 | lr: 0.3935 | dt: 21ms | img/s: 24,743 | rem: 256s    step 01800 ep 19 (15.1%) | loss: 1.1289 | lr: 0.3995 | dt: 22ms | img/s: 22,992 | rem: 255s    
+  eval ep  19 | test_loss: 0.6013 | test_acc: 84.72% | best: 86.66% | wall: 78s
+step 01850 ep 20 (15.5%) | loss: 1.1314 | lr: 0.3978 | dt: 22ms | img/s: 23,729 | rem: 254s    step 01900 ep 20 (15.8%) | loss: 1.1223 | lr: 0.3961 | dt: 22ms | img/s: 23,217 | rem: 252s    
+  eval ep  20 | test_loss: 0.5115 | test_acc: 88.00% | best: 88.00% | wall: 81s
+step 01950 ep 21 (16.2%) | loss: 1.1198 | lr: 0.3944 | dt: 22ms | img/s: 23,143 | rem: 251s    step 02000 ep 21 (16.6%) | loss: 1.1220 | lr: 0.3926 | dt: 22ms | img/s: 23,565 | rem: 250s    
+  eval ep  21 | test_loss: 0.4605 | test_acc: 89.82% | best: 89.82% | wall: 84s
+step 02050 ep 22 (16.9%) | loss: 1.1196 | lr: 0.3909 | dt: 22ms | img/s: 23,732 | rem: 249s    step 02100 ep 22 (17.3%) | loss: 1.1098 | lr: 0.3892 | dt: 22ms | img/s: 23,664 | rem: 248s    
+  eval ep  22 | test_loss: 0.4331 | test_acc: 90.78% | best: 90.78% | wall: 87s
+step 02150 ep 23 (17.7%) | loss: 1.1111 | lr: 0.3875 | dt: 22ms | img/s: 23,258 | rem: 247s    step 02200 ep 23 (18.0%) | loss: 1.1170 | lr: 0.3858 | dt: 22ms | img/s: 23,596 | rem: 246s    
+  eval ep  23 | test_loss: 0.4162 | test_acc: 91.36% | best: 91.36% | wall: 90s
+step 02250 ep 24 (18.4%) | loss: 1.1048 | lr: 0.3841 | dt: 22ms | img/s: 23,454 | rem: 245s    step 02300 ep 24 (18.8%) | loss: 1.1144 | lr: 0.3824 | dt: 22ms | img/s: 23,573 | rem: 244s    
+  eval ep  24 | test_loss: 0.4053 | test_acc: 91.77% | best: 91.77% | wall: 93s
+step 02350 ep 25 (19.1%) | loss: 1.1021 | lr: 0.3807 | dt: 22ms | img/s: 23,662 | rem: 243s    step 02400 ep 25 (19.5%) | loss: 1.1135 | lr: 0.3790 | dt: 22ms | img/s: 23,667 | rem: 242s    
+  eval ep  25 | test_loss: 0.3990 | test_acc: 92.23% | best: 92.23% | wall: 95s
+step 02450 ep 26 (19.8%) | loss: 1.1001 | lr: 0.3773 | dt: 22ms | img/s: 23,029 | rem: 240s    step 02500 ep 26 (20.2%) | loss: 1.1031 | lr: 0.3755 | dt: 22ms | img/s: 23,575 | rem: 239s    
+  eval ep  26 | test_loss: 0.3950 | test_acc: 92.52% | best: 92.52% | wall: 98s
+step 02550 ep 27 (20.6%) | loss: 1.0996 | lr: 0.3738 | dt: 22ms | img/s: 23,423 | rem: 238s    step 02600 ep 27 (20.9%) | loss: 1.1007 | lr: 0.3721 | dt: 21ms | img/s: 23,838 | rem: 237s    
+  eval ep  27 | test_loss: 0.3940 | test_acc: 92.59% | best: 92.59% | wall: 101s
+step 02650 ep 28 (21.3%) | loss: 1.0967 | lr: 0.3704 | dt: 22ms | img/s: 23,596 | rem: 236s    step 02700 ep 28 (21.7%) | loss: 1.1037 | lr: 0.3687 | dt: 22ms | img/s: 23,727 | rem: 235s    
+  eval ep  28 | test_loss: 0.3929 | test_acc: 92.69% | best: 92.69% | wall: 104s
+step 02750 ep 29 (22.0%) | loss: 1.0892 | lr: 0.3670 | dt: 22ms | img/s: 23,157 | rem: 234s    step 02800 ep 29 (22.4%) | loss: 1.0989 | lr: 0.3653 | dt: 22ms | img/s: 23,583 | rem: 233s    
+  eval ep  29 | test_loss: 0.3919 | test_acc: 92.84% | best: 92.84% | wall: 107s
+step 02850 ep 30 (22.8%) | loss: 1.0912 | lr: 0.3636 | dt: 22ms | img/s: 22,963 | rem: 232s    step 02900 ep 30 (23.1%) | loss: 1.0916 | lr: 0.3618 | dt: 22ms | img/s: 23,671 | rem: 231s    
+  eval ep  30 | test_loss: 0.3910 | test_acc: 92.86% | best: 92.86% | wall: 110s
+step 02950 ep 31 (23.5%) | loss: 1.0904 | lr: 0.3601 | dt: 22ms | img/s: 23,456 | rem: 230s    step 03000 ep 31 (23.8%) | loss: 1.0894 | lr: 0.3584 | dt: 22ms | img/s: 23,651 | rem: 228s    
+  eval ep  31 | test_loss: 0.3910 | test_acc: 92.94% | best: 92.94% | wall: 113s
+step 03050 ep 32 (24.2%) | loss: 1.0885 | lr: 0.3567 | dt: 22ms | img/s: 23,470 | rem: 227s    step 03100 ep 32 (24.6%) | loss: 1.0963 | lr: 0.3550 | dt: 22ms | img/s: 23,787 | rem: 226s    
+  eval ep  32 | test_loss: 0.3918 | test_acc: 93.13% | best: 93.13% | wall: 116s
+step 03150 ep 33 (24.9%) | loss: 1.0819 | lr: 0.3533 | dt: 22ms | img/s: 23,718 | rem: 225s    step 03200 ep 33 (25.3%) | loss: 1.0939 | lr: 0.3516 | dt: 22ms | img/s: 23,571 | rem: 224s    
+  eval ep  33 | test_loss: 0.3924 | test_acc: 93.14% | best: 93.14% | wall: 119s
+step 03250 ep 34 (25.7%) | loss: 1.0856 | lr: 0.3499 | dt: 22ms | img/s: 23,153 | rem: 223s    
+  eval ep  34 | test_loss: 0.3919 | test_acc: 93.19% | best: 93.19% | wall: 121s
+step 03300 ep 35 (26.0%) | loss: 1.0888 | lr: 0.3482 | dt: 22ms | img/s: 23,534 | rem: 222s    step 03350 ep 35 (26.4%) | loss: 1.0864 | lr: 0.3465 | dt: 22ms | img/s: 23,567 | rem: 221s    
+  eval ep  35 | test_loss: 0.3922 | test_acc: 93.15% | best: 93.19% | wall: 124s
+step 03400 ep 36 (26.7%) | loss: 1.0799 | lr: 0.3448 | dt: 22ms | img/s: 23,541 | rem: 220s    step 03450 ep 36 (27.1%) | loss: 1.0804 | lr: 0.3431 | dt: 22ms | img/s: 23,413 | rem: 219s    
+  eval ep  36 | test_loss: 0.3907 | test_acc: 93.16% | best: 93.19% | wall: 127s
+step 03500 ep 37 (27.5%) | loss: 1.0769 | lr: 0.3414 | dt: 22ms | img/s: 23,596 | rem: 218s    step 03550 ep 37 (27.8%) | loss: 1.0807 | lr: 0.3396 | dt: 22ms | img/s: 23,598 | rem: 217s    
+  eval ep  37 | test_loss: 0.3893 | test_acc: 93.24% | best: 93.24% | wall: 130s
+step 03600 ep 38 (28.2%) | loss: 1.0763 | lr: 0.3379 | dt: 22ms | img/s: 23,519 | rem: 215s    step 03650 ep 38 (28.6%) | loss: 1.0789 | lr: 0.3362 | dt: 22ms | img/s: 23,519 | rem: 214s    
+  eval ep  38 | test_loss: 0.3884 | test_acc: 93.25% | best: 93.25% | wall: 133s
+step 03700 ep 39 (28.9%) | loss: 1.0716 | lr: 0.3345 | dt: 22ms | img/s: 23,680 | rem: 213s    step 03750 ep 39 (29.3%) | loss: 1.0827 | lr: 0.3328 | dt: 22ms | img/s: 23,386 | rem: 212s    
+  eval ep  39 | test_loss: 0.3840 | test_acc: 93.38% | best: 93.38% | wall: 136s
+step 03800 ep 40 (29.6%) | loss: 1.0744 | lr: 0.3311 | dt: 22ms | img/s: 23,641 | rem: 211s    step 03850 ep 40 (30.0%) | loss: 1.0753 | lr: 0.3294 | dt: 22ms | img/s: 23,393 | rem: 210s    
+  eval ep  40 | test_loss: 0.3804 | test_acc: 93.49% | best: 93.49% | wall: 139s
+step 03900 ep 41 (30.4%) | loss: 1.0709 | lr: 0.3277 | dt: 22ms | img/s: 23,392 | rem: 209s    step 03950 ep 41 (30.7%) | loss: 1.0808 | lr: 0.3260 | dt: 21ms | img/s: 23,821 | rem: 208s    
+  eval ep  41 | test_loss: 0.3780 | test_acc: 93.54% | best: 93.54% | wall: 142s
+step 04000 ep 42 (31.1%) | loss: 1.0656 | lr: 0.3243 | dt: 22ms | img/s: 23,665 | rem: 207s    step 04050 ep 42 (31.5%) | loss: 1.0691 | lr: 0.3226 | dt: 22ms | img/s: 23,719 | rem: 206s    
+  eval ep  42 | test_loss: 0.3764 | test_acc: 93.60% | best: 93.60% | wall: 144s
+step 04100 ep 43 (31.8%) | loss: 1.0666 | lr: 0.3209 | dt: 22ms | img/s: 23,608 | rem: 205s    step 04150 ep 43 (32.2%) | loss: 1.0716 | lr: 0.3192 | dt: 22ms | img/s: 23,554 | rem: 203s    
+  eval ep  43 | test_loss: 0.3772 | test_acc: 93.63% | best: 93.63% | wall: 147s
+step 04200 ep 44 (32.5%) | loss: 1.0638 | lr: 0.3175 | dt: 22ms | img/s: 23,123 | rem: 202s    step 04250 ep 44 (32.9%) | loss: 1.0753 | lr: 0.3158 | dt: 22ms | img/s: 23,802 | rem: 201s    
+  eval ep  44 | test_loss: 0.3779 | test_acc: 93.73% | best: 93.73% | wall: 150s
+step 04300 ep 45 (33.3%) | loss: 1.0687 | lr: 0.3140 | dt: 22ms | img/s: 23,562 | rem: 200s    step 04350 ep 45 (33.6%) | loss: 1.0685 | lr: 0.3123 | dt: 22ms | img/s: 23,661 | rem: 199s    
+  eval ep  45 | test_loss: 0.3766 | test_acc: 93.69% | best: 93.73% | wall: 153s
+step 04400 ep 46 (34.0%) | loss: 1.0602 | lr: 0.3106 | dt: 22ms | img/s: 23,348 | rem: 198s    step 04450 ep 46 (34.4%) | loss: 1.0708 | lr: 0.3089 | dt: 22ms | img/s: 23,680 | rem: 197s    
+  eval ep  46 | test_loss: 0.3754 | test_acc: 93.66% | best: 93.73% | wall: 156s
+step 04500 ep 47 (34.7%) | loss: 1.0572 | lr: 0.3072 | dt: 22ms | img/s: 23,747 | rem: 196s    step 04550 ep 47 (35.1%) | loss: 1.0683 | lr: 0.3055 | dt: 22ms | img/s: 23,559 | rem: 195s    
+  eval ep  47 | test_loss: 0.3747 | test_acc: 93.63% | best: 93.73% | wall: 159s
+step 04600 ep 48 (35.5%) | loss: 1.0617 | lr: 0.3038 | dt: 22ms | img/s: 23,700 | rem: 194s    step 04650 ep 48 (35.8%) | loss: 1.0752 | lr: 0.3021 | dt: 22ms | img/s: 23,677 | rem: 193s    
+  eval ep  48 | test_loss: 0.3735 | test_acc: 93.77% | best: 93.77% | wall: 162s
+step 04700 ep 49 (36.2%) | loss: 1.0624 | lr: 0.3004 | dt: 22ms | img/s: 23,463 | rem: 191s    step 04750 ep 49 (36.5%) | loss: 1.0666 | lr: 0.2987 | dt: 22ms | img/s: 23,766 | rem: 190s    
+  eval ep  49 | test_loss: 0.3701 | test_acc: 93.84% | best: 93.84% | wall: 164s
+step 04800 ep 50 (36.9%) | loss: 1.0555 | lr: 0.2969 | dt: 22ms | img/s: 23,543 | rem: 189s    step 04850 ep 50 (37.3%) | loss: 1.0692 | lr: 0.2952 | dt: 21ms | img/s: 23,832 | rem: 188s    
+  eval ep  50 | test_loss: 0.3670 | test_acc: 93.94% | best: 93.94% | wall: 167s
+step 04900 ep 51 (37.6%) | loss: 1.0569 | lr: 0.2935 | dt: 22ms | img/s: 23,773 | rem: 187s    
+  eval ep  51 | test_loss: 0.3658 | test_acc: 93.97% | best: 93.97% | wall: 170s
+step 04950 ep 52 (38.0%) | loss: 1.0668 | lr: 0.2918 | dt: 22ms | img/s: 23,593 | rem: 186s    step 05000 ep 52 (38.4%) | loss: 1.0631 | lr: 0.2901 | dt: 22ms | img/s: 22,791 | rem: 185s    
+  eval ep  52 | test_loss: 0.3640 | test_acc: 93.97% | best: 93.97% | wall: 173s
+step 05050 ep 53 (38.7%) | loss: 1.0590 | lr: 0.2884 | dt: 22ms | img/s: 23,769 | rem: 184s    step 05100 ep 53 (39.1%) | loss: 1.0540 | lr: 0.2867 | dt: 22ms | img/s: 23,393 | rem: 183s    
+  eval ep  53 | test_loss: 0.3630 | test_acc: 94.01% | best: 94.01% | wall: 176s
+step 05150 ep 54 (39.4%) | loss: 1.0612 | lr: 0.2850 | dt: 22ms | img/s: 23,553 | rem: 182s    step 05200 ep 54 (39.8%) | loss: 1.0569 | lr: 0.2833 | dt: 22ms | img/s: 23,690 | rem: 181s    
+  eval ep  54 | test_loss: 0.3624 | test_acc: 94.07% | best: 94.07% | wall: 179s
+step 05250 ep 55 (40.2%) | loss: 1.0567 | lr: 0.2816 | dt: 22ms | img/s: 23,500 | rem: 179s    step 05300 ep 55 (40.5%) | loss: 1.0579 | lr: 0.2799 | dt: 22ms | img/s: 23,683 | rem: 178s    
+  eval ep  55 | test_loss: 0.3617 | test_acc: 94.09% | best: 94.09% | wall: 181s
+step 05350 ep 56 (40.9%) | loss: 1.0501 | lr: 0.2782 | dt: 22ms | img/s: 23,558 | rem: 177s    step 05400 ep 56 (41.3%) | loss: 1.0587 | lr: 0.2765 | dt: 22ms | img/s: 23,546 | rem: 176s    
+  eval ep  56 | test_loss: 0.3617 | test_acc: 94.12% | best: 94.12% | wall: 184s
+step 05450 ep 57 (41.6%) | loss: 1.0503 | lr: 0.2748 | dt: 22ms | img/s: 23,791 | rem: 175s    step 05500 ep 57 (42.0%) | loss: 1.0513 | lr: 0.2731 | dt: 22ms | img/s: 23,489 | rem: 174s    
+  eval ep  57 | test_loss: 0.3619 | test_acc: 94.10% | best: 94.12% | wall: 187s
+step 05550 ep 58 (42.3%) | loss: 1.0489 | lr: 0.2713 | dt: 22ms | img/s: 23,714 | rem: 173s    step 05600 ep 58 (42.7%) | loss: 1.0480 | lr: 0.2696 | dt: 22ms | img/s: 23,760 | rem: 172s    
+  eval ep  58 | test_loss: 0.3591 | test_acc: 94.09% | best: 94.12% | wall: 190s
+step 05650 ep 59 (43.1%) | loss: 1.0502 | lr: 0.2679 | dt: 22ms | img/s: 23,804 | rem: 171s    step 05700 ep 59 (43.4%) | loss: 1.0475 | lr: 0.2662 | dt: 22ms | img/s: 23,805 | rem: 170s    
+  eval ep  59 | test_loss: 0.3553 | test_acc: 94.14% | best: 94.14% | wall: 193s
+step 05750 ep 60 (43.8%) | loss: 1.0478 | lr: 0.2645 | dt: 22ms | img/s: 23,681 | rem: 169s    step 05800 ep 60 (44.2%) | loss: 1.0515 | lr: 0.2628 | dt: 21ms | img/s: 23,875 | rem: 168s    
+  eval ep  60 | test_loss: 0.3545 | test_acc: 94.19% | best: 94.19% | wall: 196s
+step 05850 ep 61 (44.5%) | loss: 1.0432 | lr: 0.2611 | dt: 22ms | img/s: 22,942 | rem: 166s    step 05900 ep 61 (44.9%) | loss: 1.0439 | lr: 0.2594 | dt: 22ms | img/s: 23,625 | rem: 165s    
+  eval ep  61 | test_loss: 0.3537 | test_acc: 94.20% | best: 94.20% | wall: 198s
+step 05950 ep 62 (45.2%) | loss: 1.0472 | lr: 0.2577 | dt: 22ms | img/s: 23,792 | rem: 164s    step 06000 ep 62 (45.6%) | loss: 1.0426 | lr: 0.2560 | dt: 22ms | img/s: 23,779 | rem: 163s    
+  eval ep  62 | test_loss: 0.3536 | test_acc: 94.34% | best: 94.34% | wall: 201s
+step 06050 ep 63 (46.0%) | loss: 1.0433 | lr: 0.2543 | dt: 22ms | img/s: 23,496 | rem: 162s    step 06100 ep 63 (46.3%) | loss: 1.0482 | lr: 0.2526 | dt: 22ms | img/s: 23,791 | rem: 161s    
+  eval ep  63 | test_loss: 0.3528 | test_acc: 94.43% | best: 94.43% | wall: 204s
+step 06150 ep 64 (46.7%) | loss: 1.0366 | lr: 0.2509 | dt: 22ms | img/s: 23,733 | rem: 160s    step 06200 ep 64 (47.0%) | loss: 1.0452 | lr: 0.2492 | dt: 22ms | img/s: 23,684 | rem: 159s    
+  eval ep  64 | test_loss: 0.3525 | test_acc: 94.37% | best: 94.43% | wall: 207s
+step 06250 ep 65 (47.4%) | loss: 1.0335 | lr: 0.2475 | dt: 22ms | img/s: 23,713 | rem: 158s    step 06300 ep 65 (47.8%) | loss: 1.0464 | lr: 0.2458 | dt: 22ms | img/s: 23,705 | rem: 157s    
+  eval ep  65 | test_loss: 0.3519 | test_acc: 94.41% | best: 94.43% | wall: 210s
+step 06350 ep 66 (48.1%) | loss: 1.0348 | lr: 0.2441 | dt: 22ms | img/s: 23,784 | rem: 156s    step 06400 ep 66 (48.5%) | loss: 1.0468 | lr: 0.2424 | dt: 22ms | img/s: 23,703 | rem: 155s    
+  eval ep  66 | test_loss: 0.3513 | test_acc: 94.51% | best: 94.51% | wall: 212s
+step 06450 ep 67 (48.9%) | loss: 1.0366 | lr: 0.2407 | dt: 22ms | img/s: 23,420 | rem: 153s    
+  eval ep  67 | test_loss: 0.3503 | test_acc: 94.55% | best: 94.55% | wall: 215s
+step 06500 ep 68 (49.2%) | loss: 1.0489 | lr: 0.2390 | dt: 23ms | img/s: 22,293 | rem: 152s    step 06550 ep 68 (49.6%) | loss: 1.0404 | lr: 0.2373 | dt: 22ms | img/s: 23,728 | rem: 151s    
+  eval ep  68 | test_loss: 0.3477 | test_acc: 94.65% | best: 94.65% | wall: 218s
+step 06600 ep 69 (49.9%) | loss: 1.0381 | lr: 0.2356 | dt: 22ms | img/s: 23,678 | rem: 150s    step 06650 ep 69 (50.3%) | loss: 1.0335 | lr: 0.2339 | dt: 22ms | img/s: 22,910 | rem: 149s    
+  eval ep  69 | test_loss: 0.3484 | test_acc: 94.69% | best: 94.69% | wall: 221s
+step 06700 ep 70 (50.7%) | loss: 1.0380 | lr: 0.2322 | dt: 22ms | img/s: 23,601 | rem: 148s    step 06750 ep 70 (51.0%) | loss: 1.0384 | lr: 0.2305 | dt: 22ms | img/s: 23,597 | rem: 147s    
+  eval ep  70 | test_loss: 0.3475 | test_acc: 94.68% | best: 94.69% | wall: 224s
+step 06800 ep 71 (51.4%) | loss: 1.0312 | lr: 0.2288 | dt: 22ms | img/s: 23,684 | rem: 146s    step 06850 ep 71 (51.8%) | loss: 1.0397 | lr: 0.2271 | dt: 22ms | img/s: 23,550 | rem: 145s    
+  eval ep  71 | test_loss: 0.3481 | test_acc: 94.62% | best: 94.69% | wall: 227s
+step 06900 ep 72 (52.1%) | loss: 1.0252 | lr: 0.2253 | dt: 22ms | img/s: 23,774 | rem: 144s    step 06950 ep 72 (52.5%) | loss: 1.0353 | lr: 0.2236 | dt: 22ms | img/s: 23,554 | rem: 143s    
+  eval ep  72 | test_loss: 0.3474 | test_acc: 94.68% | best: 94.69% | wall: 229s
+step 07000 ep 73 (52.8%) | loss: 1.0264 | lr: 0.2219 | dt: 22ms | img/s: 23,609 | rem: 141s    step 07050 ep 73 (53.2%) | loss: 1.0295 | lr: 0.2202 | dt: 22ms | img/s: 23,669 | rem: 140s    
+  eval ep  73 | test_loss: 0.3454 | test_acc: 94.68% | best: 94.69% | wall: 232s
+step 07100 ep 74 (53.6%) | loss: 1.0247 | lr: 0.2185 | dt: 22ms | img/s: 23,717 | rem: 139s    step 07150 ep 74 (53.9%) | loss: 1.0255 | lr: 0.2168 | dt: 22ms | img/s: 23,789 | rem: 138s    
+  eval ep  74 | test_loss: 0.3438 | test_acc: 94.62% | best: 94.69% | wall: 235s
+step 07200 ep 75 (54.3%) | loss: 1.0255 | lr: 0.2151 | dt: 21ms | img/s: 23,928 | rem: 137s    step 07250 ep 75 (54.7%) | loss: 1.0276 | lr: 0.2134 | dt: 22ms | img/s: 23,800 | rem: 136s    
+  eval ep  75 | test_loss: 0.3428 | test_acc: 94.64% | best: 94.69% | wall: 238s
+step 07300 ep 76 (55.0%) | loss: 1.0225 | lr: 0.2117 | dt: 22ms | img/s: 23,788 | rem: 135s    step 07350 ep 76 (55.4%) | loss: 1.0267 | lr: 0.2100 | dt: 22ms | img/s: 23,810 | rem: 134s    
+  eval ep  76 | test_loss: 0.3417 | test_acc: 94.72% | best: 94.72% | wall: 241s
+step 07400 ep 77 (55.7%) | loss: 1.0226 | lr: 0.2083 | dt: 22ms | img/s: 23,760 | rem: 133s    step 07450 ep 77 (56.1%) | loss: 1.0316 | lr: 0.2066 | dt: 21ms | img/s: 23,925 | rem: 132s    
+  eval ep  77 | test_loss: 0.3410 | test_acc: 94.81% | best: 94.81% | wall: 243s
+step 07500 ep 78 (56.5%) | loss: 1.0231 | lr: 0.2049 | dt: 21ms | img/s: 23,898 | rem: 131s    step 07550 ep 78 (56.8%) | loss: 1.0245 | lr: 0.2033 | dt: 21ms | img/s: 23,860 | rem: 130s    
+  eval ep  78 | test_loss: 0.3415 | test_acc: 94.76% | best: 94.81% | wall: 246s
+step 07600 ep 79 (57.2%) | loss: 1.0217 | lr: 0.2016 | dt: 21ms | img/s: 23,934 | rem: 128s    step 07650 ep 79 (57.5%) | loss: 1.0255 | lr: 0.1999 | dt: 22ms | img/s: 23,797 | rem: 127s    
+  eval ep  79 | test_loss: 0.3412 | test_acc: 94.76% | best: 94.81% | wall: 249s
+step 07700 ep 80 (57.9%) | loss: 1.0162 | lr: 0.1982 | dt: 21ms | img/s: 23,849 | rem: 126s    step 07750 ep 80 (58.3%) | loss: 1.0245 | lr: 0.1965 | dt: 21ms | img/s: 23,963 | rem: 125s    
+  eval ep  80 | test_loss: 0.3406 | test_acc: 94.89% | best: 94.89% | wall: 252s
+step 07800 ep 81 (58.6%) | loss: 1.0245 | lr: 0.1948 | dt: 21ms | img/s: 23,840 | rem: 124s    step 07850 ep 81 (59.0%) | loss: 1.0185 | lr: 0.1931 | dt: 21ms | img/s: 23,988 | rem: 123s    
+  eval ep  81 | test_loss: 0.3408 | test_acc: 94.95% | best: 94.95% | wall: 255s
+step 07900 ep 82 (59.3%) | loss: 1.0128 | lr: 0.1914 | dt: 22ms | img/s: 23,720 | rem: 122s    step 07950 ep 82 (59.7%) | loss: 1.0258 | lr: 0.1897 | dt: 22ms | img/s: 23,800 | rem: 121s    
+  eval ep  82 | test_loss: 0.3413 | test_acc: 95.00% | best: 95.00% | wall: 257s
+step 08000 ep 83 (60.1%) | loss: 1.0158 | lr: 0.1880 | dt: 21ms | img/s: 23,907 | rem: 120s    step 08050 ep 83 (60.4%) | loss: 1.0173 | lr: 0.1863 | dt: 21ms | img/s: 23,856 | rem: 119s    
+  eval ep  83 | test_loss: 0.3395 | test_acc: 95.03% | best: 95.03% | wall: 260s
+step 08100 ep 84 (60.8%) | loss: 1.0135 | lr: 0.1846 | dt: 22ms | img/s: 23,588 | rem: 118s    
+  eval ep  84 | test_loss: 0.3390 | test_acc: 94.98% | best: 95.03% | wall: 263s
+step 08150 ep 85 (61.1%) | loss: 1.0161 | lr: 0.1829 | dt: 22ms | img/s: 23,698 | rem: 117s    step 08200 ep 85 (61.5%) | loss: 1.0130 | lr: 0.1812 | dt: 22ms | img/s: 22,784 | rem: 115s    
+  eval ep  85 | test_loss: 0.3398 | test_acc: 94.98% | best: 95.03% | wall: 266s
+step 08250 ep 86 (61.9%) | loss: 1.0065 | lr: 0.1795 | dt: 22ms | img/s: 23,754 | rem: 114s    step 08300 ep 86 (62.2%) | loss: 1.0109 | lr: 0.1778 | dt: 22ms | img/s: 23,601 | rem: 113s    
+  eval ep  86 | test_loss: 0.3385 | test_acc: 94.98% | best: 95.03% | wall: 269s
+step 08350 ep 87 (62.6%) | loss: 1.0105 | lr: 0.1761 | dt: 22ms | img/s: 23,716 | rem: 112s    step 08400 ep 87 (63.0%) | loss: 1.0074 | lr: 0.1743 | dt: 22ms | img/s: 23,797 | rem: 111s    
+  eval ep  87 | test_loss: 0.3383 | test_acc: 94.91% | best: 95.03% | wall: 272s
+step 08450 ep 88 (63.3%) | loss: 1.0065 | lr: 0.1726 | dt: 23ms | img/s: 22,680 | rem: 110s    step 08500 ep 88 (63.7%) | loss: 1.0058 | lr: 0.1709 | dt: 22ms | img/s: 23,740 | rem: 109s    
+  eval ep  88 | test_loss: 0.3375 | test_acc: 94.98% | best: 95.03% | wall: 274s
+step 08550 ep 89 (64.0%) | loss: 1.0085 | lr: 0.1692 | dt: 23ms | img/s: 22,714 | rem: 108s    step 08600 ep 89 (64.4%) | loss: 1.0017 | lr: 0.1675 | dt: 22ms | img/s: 23,690 | rem: 107s    
+  eval ep  89 | test_loss: 0.3356 | test_acc: 95.06% | best: 95.06% | wall: 277s
+step 08650 ep 90 (64.8%) | loss: 1.0086 | lr: 0.1658 | dt: 22ms | img/s: 23,651 | rem: 106s    step 08700 ep 90 (65.1%) | loss: 1.0008 | lr: 0.1641 | dt: 22ms | img/s: 23,273 | rem: 105s    
+  eval ep  90 | test_loss: 0.3351 | test_acc: 95.00% | best: 95.06% | wall: 280s
+step 08750 ep 91 (65.5%) | loss: 0.9982 | lr: 0.1624 | dt: 22ms | img/s: 23,706 | rem: 104s    step 08800 ep 91 (65.9%) | loss: 1.0006 | lr: 0.1607 | dt: 21ms | img/s: 23,832 | rem: 102s    
+  eval ep  91 | test_loss: 0.3340 | test_acc: 94.99% | best: 95.06% | wall: 283s
+step 08850 ep 92 (66.2%) | loss: 0.9973 | lr: 0.1590 | dt: 22ms | img/s: 23,784 | rem: 101s    step 08900 ep 92 (66.6%) | loss: 1.0034 | lr: 0.1572 | dt: 22ms | img/s: 23,359 | rem: 100s    
+  eval ep  92 | test_loss: 0.3331 | test_acc: 95.04% | best: 95.06% | wall: 286s
+step 08950 ep 93 (67.0%) | loss: 0.9944 | lr: 0.1555 | dt: 22ms | img/s: 23,594 | rem: 99s    step 09000 ep 93 (67.3%) | loss: 1.0007 | lr: 0.1538 | dt: 22ms | img/s: 23,581 | rem: 98s    
+  eval ep  93 | test_loss: 0.3327 | test_acc: 95.07% | best: 95.07% | wall: 289s
+step 09050 ep 94 (67.7%) | loss: 0.9915 | lr: 0.1521 | dt: 22ms | img/s: 23,803 | rem: 97s    step 09100 ep 94 (68.0%) | loss: 0.9994 | lr: 0.1504 | dt: 21ms | img/s: 23,848 | rem: 96s    
+  eval ep  94 | test_loss: 0.3315 | test_acc: 95.14% | best: 95.14% | wall: 292s
+step 09150 ep 95 (68.4%) | loss: 0.9923 | lr: 0.1487 | dt: 22ms | img/s: 23,700 | rem: 95s    step 09200 ep 95 (68.8%) | loss: 0.9994 | lr: 0.1470 | dt: 21ms | img/s: 23,827 | rem: 94s    
+  eval ep  95 | test_loss: 0.3312 | test_acc: 95.24% | best: 95.24% | wall: 294s
+step 09250 ep 96 (69.1%) | loss: 0.9873 | lr: 0.1453 | dt: 22ms | img/s: 23,600 | rem: 93s    step 09300 ep 96 (69.5%) | loss: 1.0000 | lr: 0.1436 | dt: 22ms | img/s: 23,805 | rem: 92s    
+  eval ep  96 | test_loss: 0.3322 | test_acc: 95.26% | best: 95.26% | wall: 297s
+step 09350 ep 97 (69.9%) | loss: 0.9868 | lr: 0.1419 | dt: 22ms | img/s: 23,492 | rem: 90s    step 09400 ep 97 (70.2%) | loss: 0.9915 | lr: 0.1402 | dt: 22ms | img/s: 23,638 | rem: 89s    
+  eval ep  97 | test_loss: 0.3322 | test_acc: 95.32% | best: 95.32% | wall: 300s
+step 09450 ep 98 (70.6%) | loss: 0.9894 | lr: 0.1385 | dt: 21ms | img/s: 23,824 | rem: 88s    step 09500 ep 98 (70.9%) | loss: 0.9964 | lr: 0.1368 | dt: 22ms | img/s: 23,808 | rem: 87s    
+  eval ep  98 | test_loss: 0.3311 | test_acc: 95.34% | best: 95.34% | wall: 303s
+step 09550 ep 99 (71.3%) | loss: 0.9873 | lr: 0.1351 | dt: 22ms | img/s: 23,812 | rem: 86s    step 09600 ep 99 (71.7%) | loss: 0.9887 | lr: 0.1334 | dt: 21ms | img/s: 23,906 | rem: 85s    
+  eval ep  99 | test_loss: 0.3312 | test_acc: 95.36% | best: 95.36% | wall: 306s
+step 09650 ep 100 (72.0%) | loss: 0.9852 | lr: 0.1316 | dt: 22ms | img/s: 23,690 | rem: 84s    step 09700 ep 100 (72.4%) | loss: 0.9850 | lr: 0.1299 | dt: 22ms | img/s: 23,763 | rem: 83s    
+  eval ep 100 | test_loss: 0.3303 | test_acc: 95.41% | best: 95.41% | wall: 309s
+step 09750 ep 101 (72.8%) | loss: 0.9825 | lr: 0.1282 | dt: 22ms | img/s: 23,810 | rem: 82s    
+  eval ep 101 | test_loss: 0.3300 | test_acc: 95.34% | best: 95.41% | wall: 312s
+step 09800 ep 102 (73.1%) | loss: 0.9808 | lr: 0.1265 | dt: 22ms | img/s: 23,624 | rem: 81s    step 09850 ep 102 (73.5%) | loss: 0.9829 | lr: 0.1248 | dt: 22ms | img/s: 22,896 | rem: 80s    
+  eval ep 102 | test_loss: 0.3299 | test_acc: 95.29% | best: 95.41% | wall: 315s
+step 09900 ep 103 (73.8%) | loss: 0.9852 | lr: 0.1231 | dt: 22ms | img/s: 23,733 | rem: 78s    step 09950 ep 103 (74.2%) | loss: 0.9785 | lr: 0.1214 | dt: 22ms | img/s: 23,344 | rem: 77s    
+  eval ep 103 | test_loss: 0.3296 | test_acc: 95.32% | best: 95.41% | wall: 318s
+step 10000 ep 104 (74.6%) | loss: 0.9779 | lr: 0.1197 | dt: 22ms | img/s: 23,649 | rem: 76s    step 10050 ep 104 (74.9%) | loss: 0.9783 | lr: 0.1180 | dt: 21ms | img/s: 23,851 | rem: 75s    
+  eval ep 104 | test_loss: 0.3287 | test_acc: 95.41% | best: 95.41% | wall: 320s
+step 10100 ep 105 (75.3%) | loss: 0.9798 | lr: 0.1163 | dt: 22ms | img/s: 23,741 | rem: 74s    step 10150 ep 105 (75.7%) | loss: 0.9757 | lr: 0.1146 | dt: 21ms | img/s: 23,822 | rem: 73s    
+  eval ep 105 | test_loss: 0.3287 | test_acc: 95.37% | best: 95.41% | wall: 323s
+step 10200 ep 106 (76.0%) | loss: 0.9738 | lr: 0.1129 | dt: 22ms | img/s: 23,173 | rem: 72s    step 10250 ep 106 (76.4%) | loss: 0.9704 | lr: 0.1112 | dt: 27ms | img/s: 19,104 | rem: 71s    
+  eval ep 106 | test_loss: 0.3289 | test_acc: 95.35% | best: 95.41% | wall: 326s
+step 10300 ep 107 (76.7%) | loss: 0.9663 | lr: 0.1095 | dt: 22ms | img/s: 23,783 | rem: 70s    step 10350 ep 107 (77.1%) | loss: 0.9670 | lr: 0.1077 | dt: 22ms | img/s: 23,553 | rem: 69s    
+  eval ep 107 | test_loss: 0.3281 | test_acc: 95.29% | best: 95.41% | wall: 329s
+step 10400 ep 108 (77.5%) | loss: 0.9678 | lr: 0.1060 | dt: 22ms | img/s: 23,673 | rem: 68s    step 10450 ep 108 (77.8%) | loss: 0.9715 | lr: 0.1043 | dt: 22ms | img/s: 23,648 | rem: 66s    
+  eval ep 108 | test_loss: 0.3270 | test_acc: 95.32% | best: 95.41% | wall: 332s
+step 10500 ep 109 (78.2%) | loss: 0.9673 | lr: 0.1026 | dt: 22ms | img/s: 23,647 | rem: 65s    step 10550 ep 109 (78.6%) | loss: 0.9658 | lr: 0.1009 | dt: 22ms | img/s: 22,824 | rem: 64s    
+  eval ep 109 | test_loss: 0.3263 | test_acc: 95.45% | best: 95.45% | wall: 335s
+step 10600 ep 110 (78.9%) | loss: 0.9642 | lr: 0.0991 | dt: 22ms | img/s: 23,464 | rem: 63s    step 10650 ep 110 (79.3%) | loss: 0.9637 | lr: 0.0974 | dt: 21ms | img/s: 23,833 | rem: 62s    
+  eval ep 110 | test_loss: 0.3255 | test_acc: 95.47% | best: 95.47% | wall: 338s
+step 10700 ep 111 (79.7%) | loss: 0.9618 | lr: 0.0957 | dt: 21ms | img/s: 23,831 | rem: 61s    step 10750 ep 111 (80.0%) | loss: 0.9651 | lr: 0.0939 | dt: 21ms | img/s: 23,862 | rem: 60s    
+  eval ep 111 | test_loss: 0.3203 | test_acc: 95.67% | best: 95.67% | wall: 341s
+step 10800 ep 112 (80.4%) | loss: 0.9577 | lr: 0.0922 | dt: 22ms | img/s: 23,705 | rem: 59s    step 10850 ep 112 (80.8%) | loss: 0.9578 | lr: 0.0905 | dt: 21ms | img/s: 23,923 | rem: 58s    
+  eval ep 112 | test_loss: 0.3192 | test_acc: 95.78% | best: 95.78% | wall: 344s
+step 10900 ep 113 (81.1%) | loss: 0.9584 | lr: 0.0888 | dt: 22ms | img/s: 23,632 | rem: 57s    step 10950 ep 113 (81.5%) | loss: 0.9608 | lr: 0.0871 | dt: 22ms | img/s: 23,503 | rem: 56s    
+  eval ep 113 | test_loss: 0.3184 | test_acc: 95.76% | best: 95.78% | wall: 347s
+step 11000 ep 114 (81.9%) | loss: 0.9546 | lr: 0.0854 | dt: 22ms | img/s: 23,520 | rem: 54s    step 11050 ep 114 (82.2%) | loss: 0.9575 | lr: 0.0837 | dt: 21ms | img/s: 23,902 | rem: 53s    
+  eval ep 114 | test_loss: 0.3178 | test_acc: 95.82% | best: 95.82% | wall: 350s
+step 11100 ep 115 (82.6%) | loss: 0.9507 | lr: 0.0820 | dt: 21ms | img/s: 23,838 | rem: 52s    step 11150 ep 115 (82.9%) | loss: 0.9550 | lr: 0.0803 | dt: 22ms | img/s: 23,703 | rem: 51s    
+  eval ep 115 | test_loss: 0.3165 | test_acc: 95.91% | best: 95.91% | wall: 353s
+step 11200 ep 116 (83.3%) | loss: 0.9499 | lr: 0.0786 | dt: 22ms | img/s: 23,138 | rem: 50s    step 11250 ep 116 (83.7%) | loss: 0.9517 | lr: 0.0769 | dt: 21ms | img/s: 23,816 | rem: 49s    
+  eval ep 116 | test_loss: 0.3151 | test_acc: 95.97% | best: 95.97% | wall: 356s
+step 11300 ep 117 (84.0%) | loss: 0.9465 | lr: 0.0752 | dt: 22ms | img/s: 23,637 | rem: 48s    
+  eval ep 117 | test_loss: 0.3150 | test_acc: 95.96% | best: 95.97% | wall: 359s
+step 11350 ep 118 (84.4%) | loss: 0.9477 | lr: 0.0735 | dt: 23ms | img/s: 22,622 | rem: 47s    step 11400 ep 118 (84.8%) | loss: 0.9426 | lr: 0.0718 | dt: 22ms | img/s: 23,445 | rem: 46s    
+  eval ep 118 | test_loss: 0.3152 | test_acc: 95.94% | best: 95.97% | wall: 363s
+step 11450 ep 119 (85.1%) | loss: 0.9435 | lr: 0.0701 | dt: 23ms | img/s: 22,276 | rem: 45s    step 11500 ep 119 (85.5%) | loss: 0.9359 | lr: 0.0684 | dt: 22ms | img/s: 23,779 | rem: 44s    
+  eval ep 119 | test_loss: 0.3152 | test_acc: 95.88% | best: 95.97% | wall: 366s
+step 11550 ep 120 (85.8%) | loss: 0.9373 | lr: 0.0667 | dt: 25ms | img/s: 20,309 | rem: 42s    step 11600 ep 120 (86.2%) | loss: 0.9377 | lr: 0.0650 | dt: 22ms | img/s: 23,624 | rem: 41s    
+  eval ep 120 | test_loss: 0.3155 | test_acc: 95.96% | best: 95.97% | wall: 369s
+step 11650 ep 121 (86.6%) | loss: 0.9382 | lr: 0.0633 | dt: 22ms | img/s: 23,511 | rem: 40s    step 11700 ep 121 (86.9%) | loss: 0.9403 | lr: 0.0615 | dt: 22ms | img/s: 23,754 | rem: 39s    
+  eval ep 121 | test_loss: 0.3154 | test_acc: 95.98% | best: 95.98% | wall: 372s
+step 11750 ep 122 (87.3%) | loss: 0.9366 | lr: 0.0598 | dt: 21ms | img/s: 23,831 | rem: 38s    step 11800 ep 122 (87.7%) | loss: 0.9344 | lr: 0.0581 | dt: 22ms | img/s: 23,106 | rem: 37s    
+  eval ep 122 | test_loss: 0.3158 | test_acc: 95.99% | best: 95.99% | wall: 375s
+step 11850 ep 123 (88.0%) | loss: 0.9343 | lr: 0.0564 | dt: 22ms | img/s: 23,432 | rem: 36s    step 11900 ep 123 (88.4%) | loss: 0.9279 | lr: 0.0547 | dt: 23ms | img/s: 22,730 | rem: 35s    
+  eval ep 123 | test_loss: 0.3154 | test_acc: 96.02% | best: 96.02% | wall: 378s
+step 11950 ep 124 (88.7%) | loss: 0.9255 | lr: 0.0530 | dt: 22ms | img/s: 23,269 | rem: 34s    step 12000 ep 124 (89.1%) | loss: 0.9273 | lr: 0.0513 | dt: 22ms | img/s: 23,026 | rem: 33s    
+  eval ep 124 | test_loss: 0.3155 | test_acc: 96.02% | best: 96.02% | wall: 381s
+step 12050 ep 125 (89.5%) | loss: 0.9230 | lr: 0.0496 | dt: 22ms | img/s: 23,741 | rem: 32s    step 12100 ep 125 (89.8%) | loss: 0.9222 | lr: 0.0479 | dt: 21ms | img/s: 23,964 | rem: 31s    
+  eval ep 125 | test_loss: 0.3153 | test_acc: 96.02% | best: 96.02% | wall: 384s
+step 12150 ep 126 (90.2%) | loss: 0.9199 | lr: 0.0462 | dt: 22ms | img/s: 23,047 | rem: 29s    step 12200 ep 126 (90.6%) | loss: 0.9191 | lr: 0.0445 | dt: 22ms | img/s: 23,803 | rem: 28s    
+  eval ep 126 | test_loss: 0.3147 | test_acc: 96.09% | best: 96.09% | wall: 387s
+step 12250 ep 127 (90.9%) | loss: 0.9193 | lr: 0.0428 | dt: 22ms | img/s: 23,586 | rem: 27s    step 12300 ep 127 (91.3%) | loss: 0.9175 | lr: 0.0411 | dt: 21ms | img/s: 23,961 | rem: 26s    
+  eval ep 127 | test_loss: 0.3151 | test_acc: 96.10% | best: 96.10% | wall: 391s
+step 12350 ep 128 (91.6%) | loss: 0.9143 | lr: 0.0394 | dt: 21ms | img/s: 23,905 | rem: 25s    step 12400 ep 128 (92.0%) | loss: 0.9151 | lr: 0.0377 | dt: 22ms | img/s: 23,673 | rem: 24s    
+  eval ep 128 | test_loss: 0.3151 | test_acc: 96.08% | best: 96.10% | wall: 394s
+step 12450 ep 129 (92.4%) | loss: 0.9115 | lr: 0.0360 | dt: 22ms | img/s: 23,620 | rem: 23s    step 12500 ep 129 (92.7%) | loss: 0.9125 | lr: 0.0343 | dt: 21ms | img/s: 23,889 | rem: 22s    
+  eval ep 129 | test_loss: 0.3149 | test_acc: 96.09% | best: 96.10% | wall: 397s
+step 12550 ep 130 (93.1%) | loss: 0.9072 | lr: 0.0326 | dt: 22ms | img/s: 23,474 | rem: 21s    step 12600 ep 130 (93.4%) | loss: 0.9076 | lr: 0.0309 | dt: 22ms | img/s: 23,734 | rem: 20s    
+  eval ep 130 | test_loss: 0.3143 | test_acc: 96.15% | best: 96.15% | wall: 400s
+step 12650 ep 131 (93.8%) | loss: 0.9053 | lr: 0.0292 | dt: 22ms | img/s: 23,614 | rem: 19s    step 12700 ep 131 (94.2%) | loss: 0.9054 | lr: 0.0275 | dt: 21ms | img/s: 23,910 | rem: 18s    
+  eval ep 131 | test_loss: 0.3136 | test_acc: 96.15% | best: 96.15% | wall: 403s
+step 12750 ep 132 (94.5%) | loss: 0.9026 | lr: 0.0258 | dt: 22ms | img/s: 23,747 | rem: 16s    step 12800 ep 132 (94.9%) | loss: 0.9012 | lr: 0.0241 | dt: 21ms | img/s: 23,836 | rem: 15s    
+  eval ep 132 | test_loss: 0.3134 | test_acc: 96.16% | best: 96.16% | wall: 406s
+step 12850 ep 133 (95.2%) | loss: 0.8982 | lr: 0.0224 | dt: 22ms | img/s: 23,646 | rem: 14s    step 12900 ep 133 (95.6%) | loss: 0.9002 | lr: 0.0207 | dt: 21ms | img/s: 23,966 | rem: 13s    
+  eval ep 133 | test_loss: 0.3133 | test_acc: 96.16% | best: 96.16% | wall: 409s
+step 12950 ep 134 (96.0%) | loss: 0.8975 | lr: 0.0190 | dt: 22ms | img/s: 23,084 | rem: 12s    
+  eval ep 134 | test_loss: 0.3134 | test_acc: 96.21% | best: 96.21% | wall: 412s
+step 13000 ep 135 (96.3%) | loss: 0.8957 | lr: 0.0173 | dt: 22ms | img/s: 23,517 | rem: 11s    step 13050 ep 135 (96.7%) | loss: 0.8951 | lr: 0.0156 | dt: 22ms | img/s: 23,565 | rem: 10s    
+  eval ep 135 | test_loss: 0.3134 | test_acc: 96.23% | best: 96.23% | wall: 415s
+step 13100 ep 136 (97.1%) | loss: 0.8926 | lr: 0.0139 | dt: 22ms | img/s: 23,572 | rem: 9s    step 13150 ep 136 (97.4%) | loss: 0.8899 | lr: 0.0122 | dt: 22ms | img/s: 23,739 | rem: 8s    
+  eval ep 136 | test_loss: 0.3136 | test_acc: 96.19% | best: 96.23% | wall: 418s
+step 13200 ep 137 (97.8%) | loss: 0.8912 | lr: 0.0105 | dt: 22ms | img/s: 23,671 | rem: 7s    step 13250 ep 137 (98.1%) | loss: 0.8911 | lr: 0.0088 | dt: 22ms | img/s: 23,762 | rem: 6s    
+  eval ep 137 | test_loss: 0.3131 | test_acc: 96.20% | best: 96.23% | wall: 421s
+step 13300 ep 138 (98.5%) | loss: 0.8903 | lr: 0.0071 | dt: 22ms | img/s: 23,026 | rem: 4s    step 13350 ep 138 (98.9%) | loss: 0.8888 | lr: 0.0053 | dt: 21ms | img/s: 23,822 | rem: 3s    
+  eval ep 138 | test_loss: 0.3128 | test_acc: 96.14% | best: 96.23% | wall: 425s
+step 13400 ep 139 (99.2%) | loss: 0.8876 | lr: 0.0036 | dt: 21ms | img/s: 23,816 | rem: 2s    step 13450 ep 139 (99.6%) | loss: 0.8871 | lr: 0.0019 | dt: 22ms | img/s: 23,729 | rem: 1s    
+  eval ep 139 | test_loss: 0.3125 | test_acc: 96.12% | best: 96.23% | wall: 428s
+step 13500 ep 140 (100.0%) | loss: 0.8864 | lr: 0.0002 | dt: 22ms | img/s: 23,724 | rem: 0s    
+  eval ep 140 | test_loss: 0.3123 | test_acc: 96.13% | best: 96.23% | wall: 429s
+---
+best_test_acc:    96.23%
+final_test_acc:   96.13%
+final_test_loss:  0.3123
+training_seconds: 300.0
+total_seconds:    429.1
+startup_seconds:  1.3
+peak_vram_mb:     1635.7
+num_epochs:       140
+num_steps:        13507
+num_params:       7,784,627
+bn_noise:         0.083
+bn_noise_min_ch:  512

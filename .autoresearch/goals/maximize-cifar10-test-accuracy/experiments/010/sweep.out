@@ -1,0 +1,9 @@
+[trial 0] launching PEAK_LR_MUON=0.03 -> trial_0_lr0.03.log
+[trial 0] PEAK_LR_MUON=0.03 best_test_acc=95.9 epochs=59.0 status=ok
+[trial 1] launching PEAK_LR_MUON=0.06 -> trial_1_lr0.06.log
+[trial 1] PEAK_LR_MUON=0.06 best_test_acc=95.54 epochs=59.0 status=ok
+[trial 2] launching PEAK_LR_MUON=0.1 -> trial_2_lr0.1.log
+[trial 2] PEAK_LR_MUON=0.1 best_test_acc=94.42 epochs=64.0 status=ok
+[trial 3] launching PEAK_LR_MUON=0.14 -> trial_3_lr0.14.log
+[trial 3] PEAK_LR_MUON=0.14 best_test_acc=93.33 epochs=64.0 status=ok
+BEST: {"trial": 0, "params": {"PEAK_LR_MUON": 0.03}, "best_test_acc": 95.9, "num_epochs": 59, "total_seconds": 401.0, "status": "ok"}

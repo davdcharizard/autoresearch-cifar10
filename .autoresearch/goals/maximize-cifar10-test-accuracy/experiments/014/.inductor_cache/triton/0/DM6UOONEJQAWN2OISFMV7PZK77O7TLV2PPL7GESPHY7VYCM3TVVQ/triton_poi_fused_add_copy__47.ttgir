@@ -1,0 +1,23 @@
+#blocked = #ttg.blocked<{sizePerThread = [1], threadsPerWarp = [32], warpsPerCTA = [1], order = [0]}>
+#loc = loc("/SPXvePFS/users/david/autoresearch-benchmarks/autoresearch-cifar10/runs/v3.0.0-opus-4-8/.autoresearch/goals/maximize-cifar10-test-accuracy/experiments/014/.inductor_cache/4z/c4zqjsr4d62rs4qfwnsygtdp4el75ygtdnph3eqw25utbdya7cq2.py":18:0)
+#loc7 = loc("in_ptr0"(#loc))
+#loc8 = loc("out_ptr1"(#loc))
+module attributes {"ttg.num-ctas" = 1 : i32, "ttg.num-warps" = 1 : i32, ttg.target = "cuda:90", "ttg.threads-per-warp" = 32 : i32} {
+  tt.func public @triton_poi_fused_add_copy__47(%in_ptr0: !tt.ptr<i64> {tt.divisibility = 16 : i32} loc("in_ptr0"(#loc)), %out_ptr1: !tt.ptr<i64> {tt.divisibility = 16 : i32} loc("out_ptr1"(#loc))) attributes {noinline = false} {
+    %c1_i64 = arith.constant 1 : i64 loc(#loc1)
+    %tmp0 = tt.load %in_ptr0 : !tt.ptr<i64> loc(#loc9)
+    %tmp3 = arith.addi %tmp0, %c1_i64 : i64 loc(#loc10)
+    %tmp3_0 = tt.splat %tmp3 : i64 -> tensor<1xi64, #blocked> loc(#loc10)
+    %0 = tt.splat %out_ptr1 : !tt.ptr<i64> -> tensor<1x!tt.ptr<i64>, #blocked> loc(#loc4)
+    tt.store %0, %tmp3_0 : tensor<1x!tt.ptr<i64>, #blocked> loc(#loc5)
+    tt.return loc(#loc6)
+  } loc(#loc)
+} loc(#loc)
+#loc1 = loc(unknown)
+#loc2 = loc("/SPXvePFS/users/david/autoresearch-benchmarks/autoresearch-cifar10/runs/v3.0.0-opus-4-8/.autoresearch/goals/maximize-cifar10-test-accuracy/experiments/014/.inductor_cache/4z/c4zqjsr4d62rs4qfwnsygtdp4el75ygtdnph3eqw25utbdya7cq2.py":23:19)
+#loc3 = loc("/SPXvePFS/users/david/autoresearch-benchmarks/autoresearch-cifar10/runs/v3.0.0-opus-4-8/.autoresearch/goals/maximize-cifar10-test-accuracy/experiments/014/.inductor_cache/4z/c4zqjsr4d62rs4qfwnsygtdp4el75ygtdnph3eqw25utbdya7cq2.py":26:18)
+#loc4 = loc("/SPXvePFS/users/david/autoresearch-benchmarks/autoresearch-cifar10/runs/v3.0.0-opus-4-8/.autoresearch/goals/maximize-cifar10-test-accuracy/experiments/014/.inductor_cache/4z/c4zqjsr4d62rs4qfwnsygtdp4el75ygtdnph3eqw25utbdya7cq2.py":27:25)
+#loc5 = loc("/SPXvePFS/users/david/autoresearch-benchmarks/autoresearch-cifar10/runs/v3.0.0-opus-4-8/.autoresearch/goals/maximize-cifar10-test-accuracy/experiments/014/.inductor_cache/4z/c4zqjsr4d62rs4qfwnsygtdp4el75ygtdnph3eqw25utbdya7cq2.py":27:64)
+#loc6 = loc("/SPXvePFS/users/david/autoresearch-benchmarks/autoresearch-cifar10/runs/v3.0.0-opus-4-8/.autoresearch/goals/maximize-cifar10-test-accuracy/experiments/014/.inductor_cache/4z/c4zqjsr4d62rs4qfwnsygtdp4el75ygtdnph3eqw25utbdya7cq2.py":27:4)
+#loc9 = loc("tmp0"(#loc2))
+#loc10 = loc("tmp3"(#loc3))

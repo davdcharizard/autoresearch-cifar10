@@ -1,0 +1,6 @@
+index, memory.used [MiB], utilization.gpu [%]
+0, 3391 MiB, 0 %
+1, 3843 MiB, 3 %
+pid, used_gpu_memory [MiB]
+80142, 3384 MiB
+1723342, 3836 MiB

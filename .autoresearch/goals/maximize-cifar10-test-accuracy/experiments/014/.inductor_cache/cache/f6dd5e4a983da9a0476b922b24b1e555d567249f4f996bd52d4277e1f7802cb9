@@ -1,0 +1,20 @@
+{
+    "system": {
+        "device": {
+            "name": "NVIDIA H20"
+        },
+        "version": {
+            "triton": "3.5.10355c3e3452fa4500122244b8fff8864f22bc05c417a3d6f5dada9f2e92f8040-c4d799c32eb6a3b92ad36ad7ea5645efc5b2fc6cd5c73dadc3a678d57dd2ccf4-c37149275a03d063fc1c339cd76a19da1c17e3d555410372e6cad29eedef6202-23d635e690d670bf61798e1259674b78c0ed5ba222ab6a455f329f27a758fc2d-e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855-e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855-03bffcc16c9d6be5ea8fde645caf3a6e3c0ac892eec49051a79d4cc99b66b9c7-e68505098eef3e7c0b050cb91da2587ab6c10d455ca0b941ff06fa8068e16305-318dbf7101b6ea9ebccfc57046fd8d963fe1d837c487005b37edf471a3207a9d-25cb0bee9547488335de2d495af738298ba6d4c20f1d37941dc17751c57a211e-e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855-3e3d33fbab70c7c05fc70e2e2fdd763dca0b847f62150592b99f8886a419ee64-83ef58f2371da7ad8e01822c2afc82f9a2d6516c2249ee0bbd8873bb20616be0-5fc19298e2708dca67a2245bdeed2766923721f77d3c6928011672d3d4f13b19-5c1281b67c0d949da34ccf1c3b68804a2caa2665953984d837d753e91af611fe-5d15c5bebef8d7aa51b21fd187e5faa95eba4a213254355bc69e0648013599f7-30106ed84518c6ca7aca08e2c0ee188755f512cc0cb2d7da8914cc48c1ad6dcc-adb54e71d0ffc3bdac437fbc97929769fbbe4ebd03e6361c6357f2a24f7c5954-27b2a5d1e8db008bacefe6019f63922bbd65926de90bb1b527ee597477d2f365-a610dc5c215589aab7a784e1c07acef3e16d53ef00f08de793899964956f4e2a-18572e33e474a820799036f2b2f8c3e54d8a526386356716cccf2bf32a832376-2cdca74c4297804dcf499a7e9d4315ab87edfe2d72f536a8fdc02f28a3e7dacd-b53abe93473eb37d88bc378692065c9a8b1bf54b6417cb1911a13d10918c6d20-f60c2bb2d8eebe1c191f4b8b819844414dd1bce243645635a094f9f92665a58e-08abee21ce6230a873ed0831f70f9570b7ce39969dbf9b2f28ae1a1992ee1cc7-8e4b8599f819f32bcabae6fd118dbbccfbec0ba9e1909224d39c5fe32fbb491f-3db4bee9427c7eb0e2105aff484bdacc819357d298e8f6e89c372ae9c3625bdf-59cf295f3aab4fa62b96a627aa9fec1302950133750de59e542c7b4c9e5b80b6-5305890c3b133def44e2f3d3405e0fb1fd6ce78d0a28b2127670a195bbe11c66",
+            "cuda": "12.8"
+        },
+        "hash": "f6dd5e4a983da9a0476b922b24b1e555d567249f4f996bd52d4277e1f7802cb9"
+    },
+    "cache": {
+        "base mm time: ((torch.Size([512, 10]), (10, 1), torch.bfloat16), (torch.Size([10, 512]), (512, 1), torch.bfloat16), None, None, <OpOverloadPacket(op='aten.mm')>, None, None)": 0.012703999876976013,
+        "((torch.Size([512, 10]), (10, 1), torch.bfloat16), (torch.Size([10, 512]), (512, 1), torch.bfloat16), 'exclude_pad:True', 'exclude_pad:True', <OpOverloadPacket(op='aten.mm')>, None, None)": true,
+        "base mm time: ((torch.Size([10, 512]), (1, 10), torch.bfloat16), (torch.Size([512, 512]), (512, 1), torch.bfloat16), None, None, <OpOverloadPacket(op='aten.mm')>, None, None)": 0.010463999584317207,
+        "((torch.Size([10, 512]), (1, 10), torch.bfloat16), (torch.Size([512, 512]), (512, 1), torch.bfloat16), 'exclude_pad:False', 'exclude_pad:True', <OpOverloadPacket(op='aten.mm')>, None, None)": false,
+        "base mm time: ((torch.Size([512, 512]), (512, 1), torch.bfloat16), (torch.Size([512, 10]), (1, 512), torch.bfloat16), None, None, <OpOverloadPacket(op='aten.mm')>, None, None)": 0.009440000168979168,
+        "((torch.Size([512, 512]), (512, 1), torch.bfloat16), (torch.Size([512, 10]), (1, 512), torch.bfloat16), 'exclude_pad:True', 'exclude_pad:False', <OpOverloadPacket(op='aten.mm')>, None, None)": false
+    }
+}

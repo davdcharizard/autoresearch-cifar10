@@ -1,0 +1,16 @@
+===== CELL c0: USE_COMPILE=0 WARMUP=1 LAYER2_WIDTH=256 =====
+[smi] index, memory.used [MiB], utilization.gpu [%]
+[smi] 0, 3391 MiB, 0 %
+[smi] 1, 3843 MiB, 0 %
+cell c0 exit: 0
+===== CELL cA: USE_COMPILE=1 WARMUP=1 LAYER2_WIDTH=256 =====
+[smi] index, memory.used [MiB], utilization.gpu [%]
+[smi] 0, 3391 MiB, 0 %
+[smi] 1, 3843 MiB, 3 %
+cell cA exit: 0
+===== CELL cB: USE_COMPILE=1 WARMUP=1 LAYER2_WIDTH=320 =====
+[smi] index, memory.used [MiB], utilization.gpu [%]
+[smi] 0, 3391 MiB, 0 %
+[smi] 1, 3843 MiB, 3 %
+cell cB exit: 0
+ALL CELLS DONE

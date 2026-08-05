@@ -1,0 +1,10 @@
+{
+  "trial": 0,
+  "params": {
+    "PEAK_LR_MUON": 0.03
+  },
+  "best_test_acc": 95.9,
+  "num_epochs": 59,
+  "total_seconds": 401.0,
+  "status": "ok"
+}

@@ -1,0 +1,5 @@
+trial	peak_lr_muon	best_test_acc	num_epochs	total_seconds	status
+0	0.03	95.9	59	401.0	ok
+1	0.06	95.54	59	383.1	ok
+2	0.1	94.42	64	395.3	ok
+3	0.14	93.33	64	387.1	ok

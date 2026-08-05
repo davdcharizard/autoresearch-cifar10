@@ -1,0 +1,19 @@
+1. **Code Changes / Verification Protocol**: `SCHEDULE = os.environ.get("SCHEDULE", "tri")` makes the committed/default `train.py` still run the baseline triangular schedule. The official goal procedure runs `CUDA_VISIBLE_DEVICES=1 uv run train.py` with no `SCHEDULE`, so a cA win via `SCHEDULE=cos` would not be reproducible by the default target code. The plan needs an on-win bake/confirm step setting cosine as the default or otherwise verifying the bare command.
+
+2. **Execution Environment / Verification Procedure**: plan commands omit an actual `timeout 600 ...` wrapper while relying on “wall < 600s” and “Timeout: kill any run > 600s wall.” This is weaker than the goal’s failure rule and prior protocols because a hung/slow run can continue unless manually polled and killed. It also makes wall-limit enforcement less auditable from logs.
+
+3. **Milestone 1 Smoke B**: “2-step train, GPU” is underspecified and risks becoming an out-of-scope mini training path if implemented by editing `train.py` or using the real evaluator/data loop. The plan only says the script lives at `/tmp/exp020_smoke.py`; it does not require no calls to `evaluator.evaluate`, no metric recording, and no persistent repo artifacts. That leaves room for untracked execution that touches benchmark machinery without being part of the official verification.
+
+4. **Verification Protocol step 6**: `git status --porcelain lists only train.py` conflicts with the plan’s own `run_{cell}.log` outputs unless logs are deleted before integrity checks. The plan also says logs are parsed and deleted “after recording,” but the integrity step requires per-run summary/max checks “for every run.” This ordering is brittle: deleting logs too early prevents anti-gaming checks; keeping them makes `git status` fail unless ignored status is explicitly understood.
+
+5. **Milestone 3 / Verification step 2**: the contention gate says re-run the full set on any foreign PID/util spike, but it does not require preserving the failed logs and marking them invalid. This can unintentionally create selective rerun latitude near a noisy 0.1pp threshold: bad-looking cells could be discarded as “contention” without a concrete, auditable threshold tied to `/tmp/exp020_smi.log` and in-log `img/s`.
+
+---
+
+## Resolutions (folded into 02-plan.md)
+
+1. **[Default reproducibility] bare `uv run train.py` runs `tri` by default → a `cos` win not reproducible by the goal's bare command.** RESOLVED: added a **BAKE step** to verification — on a confirmed cA win, change the committed default to `os.environ.get("SCHEDULE","cos")` and re-confirm with the bare command (no env) within noise; render `improvement` requires this bake to reproduce.
+2. **[Wall cap] "wall < 600s" without a real `timeout`.** RESOLVED: each cell now runs under `timeout 600` (exit 124 = wall-kill = failure, the goal's 10-min rule, auditable from the runner).
+3. **[Smoke B underspecified] risk of an out-of-scope mini-training path touching the evaluator.** RESOLVED: Smoke B is now a pure 2-step loop on RANDOM tensors in `/tmp` — explicitly NO `evaluator.evaluate`, NO dataloader, NO metric recording, NO repo writes.
+4. **[Integrity vs logs ordering] `git status` only-train.py vs `run_*.log`.** RESOLVED: clarified `run_*.log` are gitignored (consistent with only-train.py), and integrity/anti-gaming checks run DURING verification while logs exist; deletion happens later in analyze housekeeping.
+5. **[Contention re-run latitude] could discard bad cells as "contention" near the 0.1pp threshold.** RESOLVED: pre-registered an auditable contention rule set BEFORE seeing accuracy — flag iff `/tmp/exp020_smi.log` shows a foreign PID OR in-log sustained img/s < 22,000; on any flag, preserve ALL logs (marked invalid) and re-run the ENTIRE set (never a single cell).

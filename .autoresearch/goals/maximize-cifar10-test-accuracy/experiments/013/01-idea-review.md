@@ -1,0 +1,33 @@
+**Prioritized Feedback**
+
+1. **Idea-04 has a serious threshold bug in the proposal text.** It says “last ~35–40%” / tail-only SAM, but the sketch uses `use_sam = progress >= SAM_TAIL_FRAC` with `SAM_TAIL_FRAC = 0.35` (`idea-04.md` §1, §4). In `train.py`, `progress` is elapsed budget fraction (`train.py` lines 286, 341), so this enables SAM from 35% through 100%, i.e. 65% of training, not the final 35%. The proposal’s epoch math `150 * (1 - f/2) ≈124` only holds if `f=0.35` is the active SAM fraction (`idea-04.md` lines 76-79). As written it predicts closer to ~101 epochs, right in the known under-anneal danger zone. Fix by defining `SAM_START_FRAC = 1.0 - SAM_TAIL_FRAC` or simply `SAM_START_FRAC = 0.65`, then gate `progress >= SAM_START_FRAC`. This is not fatal to SAM, but it is fatal to the current code sketch.
+
+2. **Idea-04’s implementation plan leaves a silent state-leak risk.** `sam_state = {}` is declared once before the loop and then populated each SAM step (`idea-04.md` lines 173-178, 149-154). The restore loop uses `sam_state.get(p)` but the dict is never cleared. If any parameter has a grad in one SAM step and no grad in a later edge case, stale perturbations can be subtracted again. In this model all trainable params normally get grads, but adversarially this is avoidable fragility. Make `sam_state = {}` local inside each SAM step or clear it immediately after restore.
+
+3. **Idea-04’s BN-freeze helper should restore even on failure.** The perturbed pass calls `model.apply(_bn_freeze_stats)`, forward/backward, then `model.apply(_bn_restore_stats)` (`idea-04.md` lines 156-162). If the perturbed pass throws or NaNs are trapped later, BN momentum can remain zero and corrupt the run. Use `try/finally` around the second pass. Also delete `_sam_saved_momentum` after restore to avoid stale attribute confusion.
+
+4. **Idea-01 is probably closer to a repeat of the failed capacity axis than it admits.** Its own estimate lands at ~122-128 epochs (`idea-01.md` lines 55-64), while the brainstorm says ≥142 is clean, 135-141 mild, and <110 under-anneal (`01-brainstorm.md` line 20). That places the experiment below the proposal’s own clean zone before any host jitter. Since EXP-007 already showed 256→384 cut 150→94 and best==final per the prompt and brainstorm (`01-brainstorm.md` lines 18-19), the most likely failure is not “capacity untested” but “same axis still cannot buy enough low-LR updates.” To improve it, either test a smaller 288-width step first or pair width only after a throughput-free schedule improvement is validated.
+
+5. **Idea-01’s mechanism is weakened by the current diagnosis.** The brainstorm says the system is regularization-bound near a generalization ceiling, with scalar regularization and input augmentation saturated (`01-brainstorm.md` lines 17-24). Idea-01 instead bets on capacity. It cites EXP-004’s layer2 capacity win, but that win was +0.13pp at a much lower historical baseline, while the current bar is +0.10pp over 96.38. The proposal acknowledges EXP-012’s alpha evidence suggests layer2 may not be limiting (`idea-01.md` lines 104-111). The refinement is to make this a diagnostic only if `num_epochs >=135`; otherwise do not spend the next slot on it.
+
+6. **Idea-02 is clean but may be below the measurable effect size.** The proposal honestly estimates +0.05 to +0.15pp (`idea-02.md` lines 100-107, 147-151), while the goal requires at least +0.10pp and the noise floor is about 0.1pp (`01-definition.md` lines 46-50; `01-brainstorm.md` line 20). Same-session 3-cell measurement is necessary, but that is also evidence the effect is likely marginal. To strengthen it, make C2 the primary decision cell and use C1 only as attribution, not as a reason to burn extra experiment cycles if budget/process allows only one finalist.
+
+7. **Idea-02’s “more low-LR settling” claim is directionally mixed.** It correctly notes cosine is higher than linear in early decay and lower late (`idea-02.md` lines 65-76). Because `train.py` uses a time-based schedule (`train.py` lines 282-290), the endpoint is guaranteed either way; the only question is how many optimizer updates occur at useful LR bands. Without evidence that late-tail, not mid-tail, is the binding region in this already-annealed recipe, the mechanism is plausible but weak. Improvement: log or compare best-epoch timing and late-tail accuracy slope against the same-session baseline.
+
+8. **No hard scope violations in any idea.** All three modify only `train.py`, use no new dependencies, and preserve one validation per epoch (`01-definition.md` lines 21-35; `train.py` lines 338-349). Idea-04 is the only one with meaningful implementation correctness risk, but it is fixable inside `train.py`.
+
+**Scored Verdict**
+
+- **Idea-01, mild layer2 256→320**
+  - Evidence/reasoning: **6/10**. It is grounded in the prior 8x8 capacity win and the EXP-007 follow-up rationale, but its own epoch prediction sits in the ambiguous/under-anneal band and the current diagnosis is not primarily capacity-bound.
+  - Potential impact: **6/10**. If it anneals, capacity could clear +0.10pp, but the expected epoch loss makes the upside hard to realize.
+
+- **Idea-02, cosine decay + earlier peak**
+  - Evidence/reasoning: **7/10**. The proposal is internally careful, feasible in `train.py`, and addresses the EMA/PCT_START confound. The weak point is that the mechanism is subtle and mostly extrapolated.
+  - Potential impact: **4/10**. Throughput-free and low downside, but the stated expected gain is right on the noise floor.
+
+- **Idea-04, tail-only SAM**
+  - Evidence/reasoning: **7/10 after fixing the threshold bug; 5/10 as written**. It best matches the diagnosis: an untried loss-geometry mechanism for a regularization-bound model. The proposal also handles BN/EMA and fp32 perturbation concerns, but the `SAM_TAIL_FRAC=0.35` gate is currently wrong and would likely under-anneal.
+  - Potential impact: **8/10**. It has the only credible >0.1pp ceiling among the three, because it changes the flatness/generalization mechanism rather than retuning saturated scalar regularizers or making a marginal schedule tweak.
+
+**Single strongest idea: Idea-04, tail-only SAM, but only with the gate corrected to start around `progress >= 0.65`.** It wins because it attacks the diagnosed remaining limiter most directly and has the largest plausible effect size. Idea-02 is the cleanest low-risk probe but likely too small to beat the noise floor. Idea-01 is a reasonable diagnostic, but its own arithmetic says it may reproduce the capacity-under-anneal failure mode already observed.
