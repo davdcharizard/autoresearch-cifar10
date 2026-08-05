@@ -1,0 +1,34 @@
+# Adversarial Idea Review: EXP-043
+
+## Prioritized Feedback
+
+1. **Convolution-only gradient centralization is the strongest finalist, but its causal diagnosis is still speculative.** The system understanding identifies generalization and boundary quality as limiting, yet neither the accepted run nor EXP021/022/040 measures harmful per-filter mean gradients. The projection is mathematically sound, but "removes common-mode motion" is a description of the operator rather than evidence that this motion causes the 5.52% residual error. More importantly, the deleted direction is not generally redundant: the stem lacks preceding BN, ReLU inputs have nonzero means, and a 1x1 shortcut loses its all-input-channel direction. Because centralization begins on step one, coupled decay and momentum progressively shrink weight components that data gradients can no longer replenish. Keep the exact global rule for attribution, report per-tensor removed-gradient fractions as non-tuning diagnostics, and interpret a miss narrowly as rejection of this preregistered projection rather than proof that convolution optimization is not limiting.
+
+2. **Centralization's feasibility margin is much tighter than the proposal's wording suggests.** The cited broader-loop microbenchmark costs about 0.260 ms against an approximately 11.6 ms scored step, already about 2.24% versus only 2.536% allowable loss before 127 passes. Removing a few small linear projections may reduce launch count, but it does not establish sufficient margin for 18 reductions plus 18 subtractions. The preregistered counterbalanced whole-step timing gate is therefore essential and must remain authoritative; arithmetic byte counts or the earlier microbenchmark cannot override it. This is not a hard-constraint violation because a timing failure closes before scoring, but timing evidence should be treated as borderline, not affirmative.
+
+3. **The momentum-reset algebra is correct, but the proposal has no evidence for its hidden assumption that inherited velocity is antagonistic.** With PyTorch Nesterov SGD, deleting the buffer removes exactly `mu^2 * b_prev = 0.81 * b_prev` from the first hard-label direction, and the isolated inherited component falls below 1% after 44 recurrences. Those 44 updates are only about 0.48% of 9,114 hard-tail updates; mixed and hard objectives also train the same classes and model, and no transition loss spike or adverse buffer/gradient alignment was observed. The basin-selection argument makes a large effect possible in principle but does not make it likely or attributable to the diagnosed persistent generalization gap. The exact one-time reset is clean and constraint-compliant, but it should remain behind any persistent intervention; its explicit no-rescue closure is appropriate.
+
+4. **Cutout conflicts with the strongest relevant local pattern and fixes an arbitrary strength without positive support.** An 8x8 post-mixup, per-example hole is genuinely distinct from EXP003's 31% area-labeled CutMix and from feature dropout/drop-path, so it is not a fatal unchanged retry. However, EXP003, EXP006, and EXP030 all show information removal hurting at normal exposure, while the accepted recipe already combines RandAugment and mixup. No cited local measurement identifies occlusion sensitivity, and no cited external evidence justifies 8x8 for this already-regularized model. The private generator, post-mixup order, hard-tail bypass, and timing gate make the test attributable, but a miss scientifically rejects only this exact treatment; closing adjacent Random Erasing variants is a sensible anti-tuning policy, not evidence that the whole family is disproven.
+
+5. **All three proposals satisfy the stated hard constraints and preregister the decisive outcome correctly.** Each confines production changes to `train.py`, preserves a single H20 and the 300-second counted budget, leaves evaluation cadence at no more than once per epoch, avoids dependencies and seed rerolling, enforces the 600-second kill limit, and uses `best_test_acc >= 94.58%` as the sole success threshold over the 94.48% baseline. Their projected-pass formula correctly compares time-fraction-weighted step rates, and each distinguishes semantic/timing failure, normal-exposure score, and low-exposure attribution. Final accuracy and loss are correctly non-decisive corroboration rather than alternate success criteria.
+
+## Scored Verdict
+
+### Convolution-Only Gradient Centralization
+
+- **Strength of evidence and reasoning: 3/5.** The projection, optimizer ordering, tensor scope, exposure equation, and falsification contract are rigorous, and the idea is orthogonal to prior failures, but the claim that filter-mean gradients harm generalization has no direct local evidence.
+- **Potential impact: 3/5.** A persistent whole-run change to nearly all convolution weights could materially alter conditioning and boundary quality without inference cost, but its plausible upside is moderate and may be offset by deleting useful DC/cross-channel learning directions.
+
+### Early Per-Example 8x8 Post-Mixup Cutout
+
+- **Strength of evidence and reasoning: 2/5.** The implementation is isolated and distinct from prior masks, but three negative masking experiments and the lack of measured occlusion error or support for the fixed 8x8 strength leave the mechanism weakly grounded.
+- **Potential impact: 2/5.** Local occlusion invariance could clear a narrow residual error mode at little inference cost, but the accepted stack is already strongly regularized and the fixed mild hole is more likely to be too weak or harmful than to move the frontier materially.
+
+### One-Time Full Nesterov Momentum Reset at the Hard-Label Boundary
+
+- **Strength of evidence and reasoning: 2/5.** The Nesterov derivation and transition placement are exact, but there is no observed optimizer-state mismatch and the directly affected state decays within a negligible fraction of the hard tail.
+- **Potential impact: 1/5.** Although a brief displacement can theoretically select a different basin, the supported effect is a 44-update transient with no persistent mechanism, making a reproducible `+0.10` point gain a very low-ceiling bet.
+
+## Lead Selection
+
+**Selected: Convolution-Only Gradient Centralization.** It is the only finalist that applies a persistent, orthogonal intervention to the dominant learned representation while preserving the accepted forward graph, pooled head, classifier, augmentation, schedule, and decay. It wins over Cutout because it does not compound the repeatedly negative masking family, and over momentum reset because its mechanism operates throughout training rather than for less than 0.5% of the hard tail. Selection is conditional on the existing strict H20 timing gate; if that gate fails, the idea is infeasible rather than an accuracy result, and neither lower-ranked finalist becomes retrospectively supported.

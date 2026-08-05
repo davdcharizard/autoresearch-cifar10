@@ -1,0 +1,38 @@
+# Adversarial Review — EXP-001 Candidate Ideas
+
+Read: goal definition, brainstorm, all three proposals, `train.py`, results TSV. Key baseline facts confirmed against `train.py`: ResNet-20 (272K params), LR 0.1, WD 1e-4, `MultiStepLR([32000,48000])` with the second milestone unreachable at 38,254 steps; 91.54% best, 330 MiB, ~592.7s total wall. The strongest signal in the diagnosis is real: the 87.46%→91.54% jump occurred only after the first decay (~251s / 84% of budget), so **"guarantee a real low-LR convergence phase" is the single highest-confidence lever**, and all three ideas share it via time-keyed scheduling. Merit therefore turns on what each *bundles on top* of that fix.
+
+## Prioritized feedback
+
+**1. `train.py` timing means CPU augmentation cost is invisible to the budget but real on the wall clock — this is a live 10-min-kill risk, and it hits idea-02 hardest (near-fatal for its RandAugment component).** In the loop, `t0` is set *after* `for inputs, targets in train_loader` yields (line 167), so data-loading/augmentation time is **excluded** from `total_training_time`. Consequence: RandAugment (PIL/CPU, `num_ops=2, magnitude=7`) does not shrink `training_seconds` — it inflates `total_seconds` and can stall the GPU between batches. Baseline already burns 592.7s of 600s. Idea-02 keeps ~99 epochs *and* adds the heaviest CPU transform of the three → most likely to cross the 10-minute hard kill. *Fix:* idea-02 should either drop RandAugment (keep only GPU-cheap mixup + on-device Cutout, as idea-03 does), or explicitly budget wall-time and abort early. Idea-03 correctly mandates on-device vectorized Cutout — that's the right pattern; idea-02 should adopt it.
+
+**2. Idea-02 bets the ceiling on augmentation at ~100 epochs, where heavy aug typically *underfits* — and it does nothing for the diagnosed capacity/H20-underutilization gap.** mixup, RandAugment, and Cutout are all strong-regularizer methods whose CIFAR gains are demonstrated at 200+ epochs; stacked on a 272K-param net under ~100 epochs they routinely *reduce* accuracy versus clean training. The critical-period ("Time Matters") framing plus the clean tail is a genuine mitigation, but the net still keeps baseline capacity, so even in the best case its ceiling is bounded well below the two widening ideas. *Improvement:* if pursued, lead with mixup-only (α=0.2, the safest component) + mild Cutout, cut RandAugment, and shorten the regularized fraction to ~0.6 — but recognize this caps upside.
+
+**3. Idea-01 (WRN-16-2) and idea-03 (width-1.5×) are near-siblings; idea-01 is the stronger of the two on evidence, GPU utilization, and best-practice detail.** Discriminators, all grounded in the proposals:
+- **Evidence:** idea-01's config is the *canonical* WRN-16-2 (widths 32/64/128, depth 6·2+4=16) directly supported by `wide-residual-networks.md`. Idea-03's (24,48,96) is a non-standard interpolation with weaker literature backing; its target range (92.3–93.2%) is the most aggressive yet least anchored.
+- **Utilization:** the bottleneck on an H20 for a <1M-param net on 32×32 maps is kernel-launch overhead, not FLOPs. Idea-01 is *shallower and wider* (6 blocks) — fewer sequential launches, the exact WRN efficiency thesis. Idea-03 keeps depth-20 (9 blocks), so its "conservative/safer-throughput" claim is questionable: it retains more sequential launches while still ~2.25× the conv cost.
+- **Best practice:** idea-01 correctly **excludes BN/bias from weight decay** via two param groups — important because it raises WD 5×, and 5e-4 on BN affine over a short budget hurts. **Idea-03 raises WD to 5e-4 but does not mention excluding BN/bias** → an over-regularization risk idea-01 avoids. *Fix for idea-03:* add the no-decay group.
+
+**4. All three confound the schedule fix with other changes, so none cleanly attributes the (likely dominant) schedule gain.** The cheapest, highest-confidence win — cosine/time-keyed schedule on the *unchanged* ResNet-20 — is not any of the three candidates. This is acceptable for a first experiment whose objective is to *maximize accuracy* (not isolate mechanism), but the winner should log `num_epochs`, `num_steps`, and per-phase LR so the next experiment can decompose. Idea-01 and idea-03 both commit to this instrumentation; good.
+
+**5. Idea-01 omits utilization flags that idea-03 includes — a free improvement.** Idea-03 specifies `cudnn.benchmark=True` and `zero_grad(set_to_none=True)`; idea-01 does not. For a wider net the win is exactly kernel efficiency, so idea-01 should add `torch.backends.cudnn.benchmark=True` (fixed input shape ⇒ safe) and optionally TF32. Low risk, directly buys back throughput to protect its "≥45 epochs" floor.
+
+**6. Shared time-schedule implementation subtlety (idea-01 & idea-03): LR is set from `total_training_time`, which `train.py` updates *after* `optimizer.step()` (line 180).** So step *k* uses the accumulator from step *k−1* — a one-step lag, harmless, but the LR-set must replace `scheduler.step()` and run *before* `optimizer.step()`. Both proposals describe this correctly; just flagging that the existing `scheduler = MultiStepLR(...)` and `scheduler.step()` lines must be removed, not left dangling. No fatal issue.
+
+**7. No reward-hacking, seed-hacking, or scope violations in any idea.** All keep seed 42, one eval/epoch, evaluator untouched, `train.py`-only, no new deps. Clean on the hard constraints (modulo the idea-02 wall-time risk in #1).
+
+## Scored verdict
+
+**Idea-01 — Time-Aligned Pre-Activation WRN-16-2**
+- Evidence/reasoning: **8.5** — canonical WRN config with direct paper support; attacks both diagnosed gaps (schedule + capacity/utilization); includes the correct no-BN-decay detail.
+- Impact: **8.5** — WRN-16-2 is a proven strong CIFAR net (~94–95% at full budget); even at reduced ~45–70 epochs a comfortable path past the 91.64% bar with real headroom.
+
+**Idea-03 — Capacity-Matched Pre-Activation ResNet + early Cutout**
+- Evidence/reasoning: **7.0** — same sound schedule+width thesis and good utilization flags, but non-standard widths, global 5e-4 WD (no BN exclusion), and deeper-thinner shape make it a slightly weaker, less-supported variant of idea-01.
+- Impact: **7.5** — solid ceiling, but its "safer throughput" rationale is undercut by keeping 9 blocks; target range is optimistic relative to its evidence.
+
+**Idea-02 — Critical-Period Augmentation + Clean Fine-Tuning**
+- Evidence/reasoning: **6.0** — mechanistically coherent and literature-cited, but the augmentation stack is empirically fragile at ~100 epochs and the CPU-timing analysis understates the wall-clock/kill risk (#1).
+- Impact: **6.0** — leaves baseline capacity untouched, so ceiling is the lowest of the three; realistic chance of *regressing* below baseline from over-regularization.
+
+**Pick: Idea-01 (Time-Aligned Pre-Activation WRN-16-2).** It attacks the two diagnosed limiters together (guaranteed low-LR anneal *and* capacity/H20 utilization), rests on the strongest and most literature-anchored configuration, is the most GPU-efficient by being shallow-and-wide (the actual WRN thesis), and carries the correct selective-weight-decay detail that idea-03 lacks. It beats idea-03, its closest rival, on evidence and best-practice hygiene; it beats idea-02 decisively on ceiling and constraint safety. Before running, fold in two cheap improvements from this review: add `cudnn.benchmark=True` (from idea-03) to protect throughput, and log epochs/steps/LR-phase so the schedule-vs-width contributions can be decomposed in EXP-002. Primary residual risk — fewer completed epochs from the wider model — is bounded by WRN-16-2 (not WRN-28-10) + batch 256 and is directly measurable in the first run.

@@ -1,0 +1,69 @@
+# Plan EXP-044: Exact-Neutral Spatial-Dispersion Input
+- **Created**: 2026-07-27
+
+## Milestones
+
+### Milestone 1: Implement the zero-start dispersion adapter
+- [x] Create `autoresearch/maximize-cifar10-test-accuracy-044` from accepted `a7c42dc`; keep `prepare.py`/evaluator frozen and modify only `train.py` as production source.
+- [x] Append one zero bias-free `128->64` adapter inside the accepted pooled-head RNG fork, preserve exact GAP, compute population spatial std, and add its adapter output only to the accepted hidden preactivation.
+
+### Milestone 2: Prove startup identity, statistic semantics, and branch opening
+- [x] Add ignored evaluator-free `experiments/044/preflight.py` using exact `git show a7c42dc:train.py`; prove common state/RNG/optimizer identity, exact zero startup function, fixed-statistic formula, and bounded common gradients on CPU/CUDA.
+- [x] Prove nonzero adapter gradient in early/hard regimes, zero initial statistic-to-backbone gradient, fresh/preseeded coupled-Nesterov updates, replay, and non-tuning diagnostics for mean/std correlation, epsilon floor, and first-update hidden contribution.
+
+### Milestone 3: Protect the 127-pass operating regime
+- [x] Run paired counterbalanced complete-step H20 wall timing for accepted/candidate early and hard regimes. Require window CVs <=5%, paired-ratio CVs <=1%, every paired retention >=0.9746439096, candidate peak <2,048 MiB, and median projected exposure >=127 passes.
+
+### Milestone 4: Run and classify the sole score
+- [x] Reconfirm baseline 94.48 at `a7c42dc`, one idle H20, local data, exact scope, passing gates, and no stale log; run exactly `timeout 600s uv run train.py > run.log 2>&1` once.
+- [x] Require finite completion in 300.0-300.1 counted and <600 wall seconds, accepted transitions/cadence, 1,011,674 parameters, and no fault. Goal improvement is `best_test_acc >=94.58%`; mechanism support additionally requires >=127 realized passes.
+
+## Code Changes
+
+- **`train.py` / `WideResNet.__init__()`**: inside the existing restoring CPU RNG fork, after the accepted pooled head and its explicit Kaiming initialization, register exactly one `nn.Linear(widths[2], POOLED_HEAD_WIDTH, bias=False)` named `dispersion_adapter` and overwrite its complete weight with exact zeros using `init.zeros_`. Add no new seed, bias, scale, buffer, normalization, or optimizer group. Construction occurs after all accepted parameters are initialized, and the existing fork restores discarded constructor RNG.
+- **`train.py` / `WideResNet.forward()` final block**: keep `features = F.relu(self.bn(out))` and the exact accepted `F.adaptive_avg_pool2d(features,1).view(...)` mean reduction. Compute `spatial_std = torch.sqrt(torch.var(features, dim=(-2,-1), correction=0) + 1e-5)`. Unroll only the accepted pooled sequential calculation: `hidden = self.pooled_head[0](pooled) + self.dispersion_adapter(spatial_std)`; `refined = pooled + POOLED_HEAD_SCALE * self.pooled_head[2](F.relu(hidden))`; classify with the accepted `self.fc(refined)`. Do not use `std`, unbiased correction, `E[x^2]-E[x]^2`, clamp, max, concatenation, or learned spatial work.
+- **`.autoresearch/.../experiments/044/preflight.py`**: required ignored phase artifact, not production source. It blocks test construction/evaluation, imports the candidate and exact baseline independently, prints diagnostics before assertions, and never writes `run.log` or uses test labels.
+
+## Configuration Changes
+
+- Dispersion statistic: absent -> per-example/per-channel population std over all 64 final spatial sites with fixed numerical floor `1e-5` inside the square root.
+- Adapter: absent -> bias-free `Linear(128,64)`, exactly zero initialized, 8,192 parameters in the generic rank-2 `5e-4` coupled-decay group; total parameters `1,003,482 -> 1,011,674`.
+- The accepted GAP vector remains the direct residual path; the fixed statistic enters only the existing 64-unit pooled-head preactivation. Existing pooled-head matrices, ReLU, scale0.1, classifier, and sole refined-path CE remain semantically unchanged.
+- Everything else remains accepted: `(2,2,3)` WRN, FP32, batch256, global 0.2-to-0.002 cosine, continuous matrix decay, momentum0.9/Nesterov, batch-shared alpha0.2 mixup and N1/M5 RandAugment through accepted 65% transitions, seed42, loader, evaluator, and 300-second budget.
+
+## Execution Environment
+
+- Method: offline local semantic/timing preflight followed by one local score; no network, remote, install, W&B, GitHub, `gh`, fetch, push, or PR action.
+- Resources: exactly one idle NVIDIA H20, local CIFAR-10, installed `uv`, eight persistent workers.
+- Estimated runtime: semantic <=180s, timing <=240s, score about 345s wall and killed at 600s.
+- Log output: disposable preflight stdout; sole score only in project-root `run.log`, removed before this run and before the next experiment.
+- Tool skill: `/research-execute`; no submission skill.
+
+## Abort Criteria
+
+- Abort before timing on any tracked-scope/frozen-file, common state/RNG/optimizer, parameter-count/group, zero-adapter, mean/std/formula, startup-logit, common-gradient, adapter-opening, zero-backbone-branch-gradient, update-oracle, replay, temporal-control, cadence, or finite-value failure. Repair only an independently demonstrated verifier or implementation defect without changing statistic, epsilon, adapter, initialization, scale, placement, or accepted semantics.
+- Abort before scoring on nonfinite timing, window CV >5%, paired-ratio CV >1%, any paired retention <0.9746439096, median projected passes <127, candidate peak >=2,048 MiB, or stable contention. Print measurements before assertions; never tune from correlation, floor, gradient, or branch-ratio diagnostics.
+- During the score stop/classify on timeout, nonzero exit, traceback, OOM/worker/nonfinite error, no output for60s after startup, malformed/duplicate summary, wrong parameters/transitions/evaluation set, or wall >=600. Never rerun a valid fixed-seed score or tune from intermediate/final accuracy.
+
+## Verification Protocol
+
+### Verification Procedure
+
+1. Run the baseline query and require baseline94.48 at `a7c42dc`, threshold94.58. Persist outputs from: `nvidia-smi -L`; `nvidia-smi --query-gpu=name,index,memory.used,memory.total --format=csv,noheader`; `uv run python -c "import torch; print(torch.cuda.device_count(), torch.cuda.get_device_name(0)); assert torch.cuda.device_count()==1 and torch.cuda.get_device_name(0)=='NVIDIA H20'"`; `git branch --show-current`; `git diff --name-only a7c42dc`; `git diff --exit-code a7c42dc -- prepare.py pyproject.toml`; `git diff --check`; `test -d data/cifar-10-batches-py`; `test ! -e run.log`; `git check-ignore -q .autoresearch/goals/maximize-cifar10-test-accuracy/experiments/044/preflight.py`; and `uv run python -m py_compile train.py .autoresearch/goals/maximize-cifar10-test-accuracy/experiments/044/preflight.py`. Require one idle H20, EXP044 branch, only `train.py` tracked, and every command exit zero.
+2. Run `timeout 180s uv run python .autoresearch/goals/maximize-cifar10-test-accuracy/experiments/044/preflight.py semantics`. Insert the independently resolved project root into `sys.path`, replace `prepare.Eval` with a fail-closed stub, reject CIFAR/test construction, and compile the accepted module from exact `git show a7c42dc:train.py` content.
+3. Audit the production diff/AST fail closed: only adapter registration/zeroing and final forward block may change. From cloned seed42 CPU/CUDA states require all common named parameter/buffer bytes and ordering exact; only `[64,128]` all-zero `dispersion_adapter.weight` is appended; total1,011,674; post-construction RNG exact. Compare optimizer common-name subsequences/options/state and require only the adapter appended once to matrix decay.
+4. Capture the real production statistic path with hooks: a forward hook on final `bn` supplies actual pre-ReLU features; a pre-hook on `dispersion_adapter` captures its exact production input; hooks on `pooled_head[0]` and pre-`pooled_head[2]` capture the mean-linear output and actual post-addition ReLU input. Reconstruct `hidden=mean_linear+adapter_output` and require the captured `pooled_head[2]` input equals `relu(hidden)`. Compare the captured adapter input to independently expressed `sqrt(mean((relu(bn)-mean)^2)+1e-5)` using FP64 `rtol=1e-10,atol=1e-12` and FP32 `rtol=2e-5,atol=2e-7`. Require `[B,128]`, finite dtype/device preservation, no RNG/source mutation, permutation invariance, equal-mean/different-variance discrimination, and constant-channel value `sqrt(1e-5)` within dtype tolerance.
+5. With adapter bytes zero, on fixed CPU/CUDA inputs require accepted/candidate mean, hidden preactivation, refined vector, logits, loss, BN evolution, and RNG exact. Map every common gradient by name and require identical key/`None`/shape/dtype plus byte equality on CPU and CUDA, printing per-tensor max absolute/relative-L2 errors and worst name before assertions. A non-exact common gradient aborts this exact-neutral candidate rather than being hidden by a blanket tolerance.
+6. Qualify both statistic forward and backward independently. First use fixed FP64 nonconstant features, fixed nonzero `D`, and a fixed upstream hidden tensor `g` in scalar objective `sum(g*(D*sigma))`. Require `dL/dD=sum_b outer(g_b,sigma_b)` and feature gradient `r[b,c]*(x[b,c,s]-mu[b,c])/(64*sigma[b,c])`, where `r=g@D`, within `rtol=1e-10,atol=1e-12`; separately require an exactly constant channel's statistic feature gradient is exactly zero. Repeat FP32 CPU/CUDA within `rtol=2e-5,atol=2e-7`, tied to the same hooked production adapter call.
+7. For full-model early/hard fixtures derive adapter gradients without reading candidate hidden autograd: compute mean-CE logit gradient `(softmax(logits)-y)/B`, with `y=lambda*onehot(a)+(1-lambda)*onehot(b)` early and one-hot hard; multiply successively by classifier weight, accepted residual scale `0.1`, pooled output weight, and the independently reconstructed ReLU mask to obtain `g_hidden`; then require `g_hidden.T@sigma` equals adapter autograd. This explicitly tests `1/B`, lambda, and scale0.1. Require finite nonzero adapter gradients and exact zero initial dispersion contribution to feature/backbone gradients.
+8. Verify fresh and deterministic preseeded momentum updates for every named trainable parameter using independently qualified gradients and each actual LR/decay, including adapter `d=grad+5e-4*D0`, fresh `b=d` or existing `b=.9*b0+d`, and `p1=p0-lr*(d+.9*b)`. Require parameter/buffer existence/dtype/value within `rtol=2e-5,atol=2e-7`; BN buffers change only through forward. Replay early/hard fixtures. After one independently predicted full update, reuse pre-update inputs and report mean/std correlation, epsilon-floor-to-median-std ratio, adapter norms, dispersion-vs-mean hidden RMS, and refined/logit deltas; require only finite nonzero contribution and never tune from diagnostics.
+9. Re-prove accepted constants/imports, model/data/loss/optimizer code outside the exact diff, mixup RNG/input/target semantics, LR samples, strict65% mixup switch, exhausted-iterator RandAugment switch, finite guard, seed42, one ordinary CUDA device path, sole backward/step, and every-fifth-plus-final unique evaluation.
+10. Run `timeout 240s uv run python .autoresearch/goals/maximize-cifar10-test-accuracy/experiments/044/preflight.py timing`. Production timing starts after DataLoader yield; use real-shaped pinned host fixtures and include nonblocking H2D, LR writes, zeroing, mixup when active, forward, exact loss/finite guard, backward, coupled Nesterov update, and synchronization. Warm each arm/regime >=20 steps. Then run exactly two interleaved blocks with order `A-early, C-early, A-hard, C-hard, C-hard, A-hard, C-early, A-early`, each a >=50-step window from identical restored state/input/RNG.
+11. Within each interleaved block form the leading A/C early+hard pair and the trailing reverse C/A early+hard pair, yielding four locally corresponding early/hard pair indices. Print every window, the exact four early ratios and four hard ratios, their population CVs, four combined retentions, median projection, and peak before assertions. For each local pair `i`, `retention_i=(.65/c_early_i+.35/c_hard_i)/(.65/a_early_i+.35/a_hard_i)`; require all arm window-series CV<=.05, early/hard ratio CV<=.01, every retention>=0.9746439096, median `130.304*retention>=127`, and candidate peak<2,048MiB.
+12. Re-run and persist every step-1 audit immediately before score, including Python CUDA count/name, empty/unchanged `CUDA_VISIBLE_DEVICES`, and idle allocation; remove stale `run.log`; execute exactly `timeout 600s uv run train.py > run.log 2>&1` once. Require exit zero, log begins `Device: cuda`, and exactly one finite summary: 300.0-300.1 counted, <600 wall,1,011,674 params, exactly one ordered mixup/RandAugment transition, unique every-fifth union final evaluations, and no error signature. Same-process environment, one-device Python probe, single H20 inventory, and log CUDA line jointly establish the resource contract.
+13. Compute passes=`num_steps*256/50000`. Goal improvement requires valid completion and best>=94.58. Full mechanism support additionally requires passes>=127. Final accuracy vs94.45 and loss vs0.2456 are descriptive only. A normal-exposure miss rejects only this exact statistic-plus-adapter; immediate variance/RMS/max/epsilon/width/scale/init/normalization/placement variants are declined as preregistered post-result search policy.
+
+### Informational Metrics (Optional)
+
+- `run.log`: peak VRAM, best/final accuracy, final loss, counted/wall/startup, epochs, steps/passes, parameters, transitions, and evaluations.
+- Preflight stdout: state/gradient/update errors, mean/std correlation, epsilon-floor ratio, adapter norms/hidden contribution, timing windows/CVs/retentions/projection/peak.

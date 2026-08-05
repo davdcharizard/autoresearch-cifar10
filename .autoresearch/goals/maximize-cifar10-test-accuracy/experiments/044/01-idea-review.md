@@ -1,0 +1,38 @@
+# Adversarial Idea Review EXP-044
+
+## Prioritized Feedback
+
+1. **Reject fixed training-only channel standardization; the frozen evaluator makes its central intervention structurally mismatched.** `prepare.py` evaluates mean-centered/std-one images, whereas the proposal would train the stem and all BN running statistics on inputs divided by roughly 0.25. Preactivation BN may absorb much of the hoped-for training-conditioning gain but cannot make differently scaled train and evaluation inputs equivalent. The neighboring exact-tuple result fell 1.79 points (`../v2.9.0-opus-4-6/.autoresearch-dep-v2.9.0/reports/exp-report-030.md`). A matched evaluator or compensating stem/BN treatment is forbidden or becomes a different multivariable experiment, so there is no in-scope refinement that repairs the main flaw. This candidate should not advance.
+
+2. **The dispersion adapter has sound startup identity and gradient opening, and is the cleanest remaining causal test.** With `D=0`, `D sigma` is exactly zero: accepted pooled features, hidden ReLU state, logits, loss, BN evolution, and common parameter gradients remain accepted because the statistic-to-backbone derivative is `D^T dL/da = 0`. Meanwhile `dL/dD = (dL/da)^T sigma` is generally nonzero, so accepted Nesterov SGD opens the branch on the first update without blocking the established backbone/head path. The restoring CPU RNG fork and zero overwrite preserve all common initialization. Qualification should explicitly prove exact zero adapter bytes, accepted logits, bounded common-gradient equality, nonzero adapter gradient in both regimes, and fresh/preseeded Nesterov updates.
+
+3. **Its mechanism is plausible but not diagnosed, and a gain would support only the complete treatment.** EXP036 proves that this exact post-GAP hidden placement can add useful cheap nonlinear capacity; it does not prove spatial dispersion is the missing information. After BN/ReLU, channel mean and standard deviation may be strongly correlated, so the adapter may merely add a second correlated route into the 64-unit hidden layer. EXP042's 93.80% result is adverse evidence for changing spatial readout, but not a direct falsification: that experiment displaced uniform GAP through learned competitive weights, whereas this proposal preserves GAP as the entire direct path and supplies a fixed permutation-invariant statistic only to the subordinate MLP. Report `mu`/`sigma` correlation and hidden contribution without gating or tuning, and attribute any outcome only to this fixed statistic-plus-adapter combination.
+
+4. **The dispersion formula is correct, but its numerical floor creates a small hidden constant-feature path.** Population variance (`correction=0`) is appropriate for all 64 sites, and `sqrt(var + 1e-5)` avoids a singular derivative. However, a constant channel produces `sigma=sqrt(1e-5)`, not zero, so its adapter gradient can include an epsilon-derived constant component even though the statistic's backbone gradient is zero. This is unlikely to dominate ordinary nonconstant maps, but the preflight should report the epsilon floor relative to observed sigma magnitudes without using it to alter epsilon. The proposal's strict closure appropriately prevents a result-conditioned epsilon rescue.
+
+5. **Throughput is genuinely binding for dispersion despite its tiny parameter count.** The accepted run has only `127/130.304 = 0.97464` allowable retention. `torch.var`, `sqrt`, saved tensors, and their backward kernels touch the full `B x 128 x 8 x 8` map; MAC counting does not establish feasibility on this H20. Keep the counterbalanced full-step timing gate in both mixup and hard regimes. A stable miss closes this implementation before scoring; evaluation overhead is outside the 300-second budget and the accepted wall margin is ample.
+
+6. **Early-only label smoothing is algebraically correct but weakly tied to the diagnosed limiter.** The two smoothed cross-entropies are exactly equivalent to `q=(1-epsilon)y_mix+epsilon/K`; for `epsilon=0.05`, different-class targets have masses `0.95 lambda+0.005`, `0.95(1-lambda)+0.005`, and `0.005` elsewhere. Restricting it to the accepted 0-65% mixup phase preserves the locally validated one-hot tail. But mixup already provides example-aware soft targets, near-zero late train loss does not diagnose early overconfidence, and `0.05` is convention-selected rather than locally supported. EXP004/020 bracket the temporal boundary, EXP005/035 bracket mixup strength, and EXP041 warns that another CE-derived constraint can weaken the pooled-head frontier. This is a valid one-shot closure experiment, not the best lead; its no-rescue rule should remain exact.
+
+7. **All three decision contracts correctly fail closed, but only one deserves the score.** Preserve the frozen evaluator, one fixed seed, one valid score, `train.py`-only scope, at most one evaluation per epoch, the 600-second kill limit, and the `>=127`-pass mechanism floor. Neither final loss nor final accuracy may rescue `best_test_acc <94.58%`. A normal-exposure miss must close each exact candidate and its listed immediate variants; it must not be converted into an epsilon, statistic, scale, initialization, normalization, or seed search.
+
+## Scored Verdict
+
+### Exact-Neutral Spatial-Dispersion Input to the Accepted Pooled MLP
+
+- **Strength of evidence and reasoning: 3/5.** The formula, exact-neutral startup, first-update opening, placement, and distinction from EXP042 are strong; direct evidence that dispersion rather than correlated pooled capacity limits errors is absent.
+- **Potential impact: 3/5.** It can add genuinely missing permutation-invariant information to the only recently successful representation module at protected spatial cost, but a 64-unit zero-start branch and mean/std redundancy cap the credible upside.
+
+### Early-Only Epsilon-0.05 Label Smoothing on Accepted Mixup
+
+- **Strength of evidence and reasoning: 2/5.** Literature and temporal placement support early regularization, but the accepted mixup targets are already soft, no calibration diagnosis supports uniform mass, and epsilon 0.05 has no local basis.
+- **Potential impact: 2/5.** Cost is negligible and a small regularization gain is possible, but the intervention adds no information and is more likely to blunt a locally optimized mixup trajectory than move the frontier materially.
+
+### Fixed CIFAR-10 Per-Channel Training Standardization
+
+- **Strength of evidence and reasoning: 1/5.** The treatment is precise, but frozen std-one evaluation, BN-mediated scale absorption, and a neighboring exact-treatment 1.79-point regression directly oppose its hypothesis.
+- **Potential impact: 1/5.** It is computationally free, yet the only credible material effect is adverse distribution mismatch; an in-scope positive mechanism is weak.
+
+## Selected Lead
+
+**Exact-Neutral Spatial-Dispersion Input to the Accepted Pooled MLP** is the single lead. It wins because it is the only candidate that preserves the accepted function and all common first-step learning while opening a new, invariant representation signal through a real data gradient. It composes with EXP036's sole recent positive mechanism without replacing GAP, the loss, classifier geometry, raw gradients, or the frozen evaluator. Its evidence is exploratory rather than decisive, but its supported ceiling and causal cleanliness exceed redundant label smoothing, while training-only standardization is effectively disqualified. Advance exactly the fixed zero-start `128 -> 64` standard-deviation adapter with the stated semantic/timing gates and no-rescue closure.
