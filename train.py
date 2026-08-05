@@ -31,6 +31,12 @@ CUTMIX_PROB = 0.5
 CUTMIX_ALPHA = 1.0
 CUTMIX_END = 0.75
 CUTMIX_SEED = 42
+SE_HIDDEN_WIDTH = 16
+SE_INIT_SEED = 42
+SE_LR_SCALE = 5.0
+SE_EPS = 1e-5
+SE_MIN_CHANNELS = 128
+SE_STATS_PERIOD = 50
 evaluator = Eval()
 
 
@@ -39,8 +45,51 @@ evaluator = Eval()
 # ---------------------------------------------------------------------------
 
 
+class IdentitySqueezeExcitation(nn.Module):
+    def __init__(self, channels, generator):
+        super().__init__()
+        self.channels = channels
+        self.weight1 = nn.Parameter(torch.empty(SE_HIDDEN_WIDTH, channels))
+        self.bias1 = nn.Parameter(torch.zeros(SE_HIDDEN_WIDTH))
+        self.weight2 = nn.Parameter(torch.zeros(channels, SE_HIDDEN_WIDTH))
+        self.bias2 = nn.Parameter(torch.zeros(channels))
+        init.kaiming_normal_(self.weight1, generator=generator)
+
+        self.register_buffer("stat_count", torch.zeros((), dtype=torch.float32))
+        self.register_buffer("stat_abs_sum", torch.zeros((), dtype=torch.float32))
+        self.register_buffer("stat_threshold_count", torch.zeros((), dtype=torch.float32))
+        self.register_buffer("stat_max", torch.zeros((), dtype=torch.float32))
+        self.register_buffer("stat_saturation_count", torch.zeros((), dtype=torch.float32))
+        self.register_buffer("stat_nonfinite_count", torch.zeros((), dtype=torch.float32))
+
+    def forward(self, x, collect_stats=False):
+        with torch.autocast(device_type=x.device.type, enabled=False):
+            descriptor = x.float().mean(dim=(2, 3))
+            centered = descriptor - descriptor.mean(dim=1, keepdim=True)
+            variance = centered.square().mean(dim=1, keepdim=True)
+            normalized = centered * torch.rsqrt(variance + SE_EPS)
+            hidden = F.relu(F.linear(normalized, self.weight1, self.bias1))
+            logits = F.linear(hidden, self.weight2, self.bias2)
+            gate_fp32 = 2.0 * torch.sigmoid(logits)
+
+        effective_gate = gate_fp32.to(x.dtype)
+        if collect_stats and self.training and not torch.is_inference_mode_enabled():
+            with torch.no_grad():
+                gate = effective_gate.float()
+                deviation = (gate - 1.0).abs()
+                finite = torch.isfinite(gate)
+                self.stat_count.add_(deviation.numel())
+                self.stat_abs_sum.add_(deviation.masked_fill(~finite, 0.0).sum())
+                self.stat_threshold_count.add_((deviation >= 0.015625).sum())
+                self.stat_max.copy_(torch.maximum(self.stat_max, deviation.nan_to_num().max()))
+                self.stat_saturation_count.add_(((gate < 0.1) | (gate > 1.9)).sum())
+                self.stat_nonfinite_count.add_((~finite).sum())
+
+        return x * effective_gate.unsqueeze(-1).unsqueeze(-1)
+
+
 class PreActWideBlock(nn.Module):
-    def __init__(self, in_channels, out_channels, stride, drop_prob):
+    def __init__(self, in_channels, out_channels, stride, drop_prob, se_generator):
         super().__init__()
         self.bn1 = nn.BatchNorm2d(in_channels)
         self.conv1 = nn.Conv2d(
@@ -70,13 +119,20 @@ class PreActWideBlock(nn.Module):
             if stride != 1 or in_channels != out_channels
             else None
         )
+        self.se = (
+            IdentitySqueezeExcitation(out_channels, se_generator)
+            if out_channels >= SE_MIN_CHANNELS
+            else None
+        )
         self.drop_prob = drop_prob
 
-    def forward(self, x, drop_scale=0.0):
+    def forward(self, x, drop_scale=0.0, collect_se_stats=False):
         preactivated = F.relu(self.bn1(x))
         shortcut = self.shortcut(preactivated) if self.shortcut is not None else x
         out = self.conv1(preactivated)
         out = self.conv2(F.relu(self.bn2(out)))
+        if self.se is not None:
+            out = self.se(out, collect_stats=collect_se_stats)
 
         drop_prob = self.drop_prob * drop_scale
         if self.training and drop_prob > 0.0:
@@ -106,6 +162,7 @@ class PreActWideResNet(nn.Module):
             (256, 256, 1),
         ]
         num_blocks = len(block_specs)
+        se_generator = torch.Generator().manual_seed(SE_INIT_SEED)
         self.blocks = nn.ModuleList(
             [
                 PreActWideBlock(
@@ -113,6 +170,7 @@ class PreActWideResNet(nn.Module):
                     out_channels,
                     stride,
                     MAX_DROP_PATH * (index + 1) / num_blocks,
+                    se_generator,
                 )
                 for index, (in_channels, out_channels, stride) in enumerate(block_specs)
             ]
@@ -131,10 +189,10 @@ class PreActWideResNet(nn.Module):
             init.ones_(module.weight)
             init.zeros_(module.bias)
 
-    def forward(self, x, drop_scale=0.0):
+    def forward(self, x, drop_scale=0.0, collect_se_stats=False):
         out = self.conv1(x)
         for block in self.blocks:
-            out = block(out, drop_scale)
+            out = block(out, drop_scale, collect_se_stats)
         out = F.relu(self.bn(out))
         out = F.adaptive_avg_pool2d(out, 1)
         return self.fc(out.flatten(1))
@@ -244,6 +302,22 @@ def main():
 
     model = PreActWideResNet(NUM_CLASSES).to(device, memory_format=torch.channels_last)
     num_params = sum(parameter.numel() for parameter in model.parameters())
+    se_modules = [
+        block.se for block in model.blocks if block.se is not None
+    ]
+    se_named_parameters = [
+        (name, parameter)
+        for name, parameter in model.named_parameters()
+        if ".se." in name
+    ]
+    se_parameter_ids = {id(parameter) for _, parameter in se_named_parameters}
+    base_parameters = [
+        parameter
+        for parameter in model.parameters()
+        if id(parameter) not in se_parameter_ids
+    ]
+    se_parameters = [parameter for _, parameter in se_named_parameters]
+    se_parameter_count = sum(parameter.numel() for parameter in se_parameters)
     print(f"PreAct WRN-16-4 | params: {num_params:,}")
     print(
         "config: architecture=PreActWideResNet "
@@ -251,14 +325,28 @@ def main():
         f"warmup_fraction={WARMUP_FRACTION} "
         f"max_drop_path={MAX_DROP_PATH} eval_every={EVAL_EVERY} "
         f"cutmix_prob={CUTMIX_PROB} cutmix_alpha={CUTMIX_ALPHA} "
-        f"cutmix_end={CUTMIX_END} cutmix_seed={CUTMIX_SEED}"
+        f"cutmix_end={CUTMIX_END} cutmix_seed={CUTMIX_SEED} "
+        f"se_modules={len(se_modules)} se_hidden={SE_HIDDEN_WIDTH} "
+        f"se_elements={se_parameter_count} se_init_seed={SE_INIT_SEED} "
+        f"se_lr_scale={SE_LR_SCALE} se_eps={SE_EPS} "
+        f"se_min_channels={SE_MIN_CHANNELS} se_stats_period={SE_STATS_PERIOD}"
     )
 
     optimizer = optim.SGD(
-        model.parameters(),
+        [
+            {
+                "params": base_parameters,
+                "lr_scale": 1.0,
+                "weight_decay": WEIGHT_DECAY,
+            },
+            {
+                "params": se_parameters,
+                "lr_scale": SE_LR_SCALE,
+                "weight_decay": 0.0,
+            },
+        ],
         lr=PEAK_LR * START_LR_RATIO,
         momentum=MOMENTUM,
-        weight_decay=WEIGHT_DECAY,
         nesterov=True,
     )
     print(f"Time budget: {TIME_BUDGET_S}s")
@@ -291,7 +379,7 @@ def main():
             lr = learning_rate(progress)
             current_drop_scale = drop_path_scale(progress)
             for param_group in optimizer.param_groups:
-                param_group["lr"] = lr
+                param_group["lr"] = lr * param_group["lr_scale"]
 
             inputs = inputs.to(
                 device,
@@ -323,7 +411,11 @@ def main():
                 dtype=torch.bfloat16,
                 enabled=device.type == "cuda",
             ):
-                outputs = model(inputs, drop_scale=current_drop_scale)
+                outputs = model(
+                    inputs,
+                    drop_scale=current_drop_scale,
+                    collect_se_stats=step % SE_STATS_PERIOD == 0,
+                )
                 if targets_b is None:
                     loss = F.cross_entropy(outputs, targets_a)
                 else:
@@ -339,6 +431,8 @@ def main():
             step += 1
 
             train_loss_f = loss.item()
+            if not math.isfinite(train_loss_f):
+                raise RuntimeError(f"nonfinite training loss: {train_loss_f}")
             ema_beta = 0.95
             smooth_train_loss = (
                 ema_beta * smooth_train_loss + (1 - ema_beta) * train_loss_f
@@ -397,6 +491,27 @@ def main():
     print(
         f"cutmix: applied={cutmix_applied_batches} "
         f"eligible={cutmix_eligible_batches} ratio={cutmix_ratio:.4f}"
+    )
+    se_summaries = []
+    for module_index, module in enumerate(se_modules):
+        stat_count = module.stat_count.item()
+        mean_deviation = module.stat_abs_sum.item() / max(stat_count, 1.0)
+        threshold_fraction = module.stat_threshold_count.item() / max(stat_count, 1.0)
+        saturation_fraction = module.stat_saturation_count.item() / max(stat_count, 1.0)
+        se_summaries.append(
+            f"{module_index}:"
+            f"w1={module.weight1.detach().float().norm().item():.6f},"
+            f"w2={module.weight2.detach().float().norm().item():.6f},"
+            f"mean_dev={mean_deviation:.6f},"
+            f"frac_2ulp={threshold_fraction:.6f},"
+            f"max_dev={module.stat_max.item():.6f},"
+            f"sat_frac={saturation_fraction:.6f},"
+            f"nonfinite={int(module.stat_nonfinite_count.item())}"
+        )
+    print(
+        f"se: modules={len(se_modules)} tensors={len(se_parameters)} "
+        f"elements={se_parameter_count} lr_scale={SE_LR_SCALE} "
+        f"weight_decay=0.0 stats=" + ";".join(se_summaries)
     )
     print("---")
     print(f"best_test_acc:    {best_acc:.2f}%")
