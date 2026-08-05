@@ -27,6 +27,10 @@ WEIGHT_DECAY = 1e-4
 MAX_DROP_PATH = 0.08
 DROP_PATH_DECAY_START = 0.75
 EVAL_EVERY = 1
+CUTMIX_PROB = 0.5
+CUTMIX_ALPHA = 1.0
+CUTMIX_END = 0.75
+CUTMIX_SEED = 42
 evaluator = Eval()
 
 
@@ -154,6 +158,48 @@ def drop_path_scale(progress):
     return max(0.0, (1.0 - progress) / (1.0 - DROP_PATH_DECAY_START))
 
 
+def cutmix_batch(
+    inputs,
+    targets,
+    cpu_generator,
+    cuda_generator,
+    lam=None,
+    center=None,
+    permutation=None,
+):
+    height, width = inputs.shape[-2:]
+    if lam is None:
+        lam = torch.rand((), generator=cpu_generator).item()
+    lam = min(max(float(lam), 0.0), 1.0)
+
+    cut_ratio = math.sqrt(1.0 - lam)
+    cut_width = int(width * cut_ratio)
+    cut_height = int(height * cut_ratio)
+    if center is None:
+        center_x = int(torch.randint(width, (), generator=cpu_generator).item())
+        center_y = int(torch.randint(height, (), generator=cpu_generator).item())
+    else:
+        center_x, center_y = center
+
+    x1 = max(center_x - cut_width // 2, 0)
+    x2 = min(center_x + (cut_width + 1) // 2, width)
+    y1 = max(center_y - cut_height // 2, 0)
+    y2 = min(center_y + (cut_height + 1) // 2, height)
+    area = (x2 - x1) * (y2 - y1)
+
+    if permutation is None:
+        permutation = torch.randperm(
+            inputs.shape[0], device=inputs.device, generator=cuda_generator
+        )
+    paired_targets = targets[permutation]
+    if area > 0:
+        source_patch = inputs[permutation, :, y1:y2, x1:x2].clone()
+        inputs[:, :, y1:y2, x1:x2] = source_patch
+
+    adjusted_lam = 1.0 - area / (height * width)
+    return inputs, targets, paired_targets, adjusted_lam, area
+
+
 # ---------------------------------------------------------------------------
 # Training & evaluation
 # ---------------------------------------------------------------------------
@@ -203,7 +249,9 @@ def main():
         "config: architecture=PreActWideResNet "
         f"params={num_params} peak_lr={PEAK_LR} "
         f"warmup_fraction={WARMUP_FRACTION} "
-        f"max_drop_path={MAX_DROP_PATH} eval_every={EVAL_EVERY}"
+        f"max_drop_path={MAX_DROP_PATH} eval_every={EVAL_EVERY} "
+        f"cutmix_prob={CUTMIX_PROB} cutmix_alpha={CUTMIX_ALPHA} "
+        f"cutmix_end={CUTMIX_END} cutmix_seed={CUTMIX_SEED}"
     )
 
     optimizer = optim.SGD(
@@ -215,6 +263,8 @@ def main():
     )
     print(f"Time budget: {TIME_BUDGET_S}s")
     print(f"Batches per epoch: {len(train_loader)}")
+    cutmix_cpu_generator = torch.Generator().manual_seed(CUTMIX_SEED)
+    cutmix_cuda_generator = torch.Generator(device=device).manual_seed(CUTMIX_SEED)
 
     # -----------------------------------------------------------------------
     # Training loop (time-budgeted)
@@ -228,6 +278,8 @@ def main():
     best_acc = 0.0
     test_loss = float("nan")
     test_acc = float("nan")
+    cutmix_eligible_batches = 0
+    cutmix_applied_batches = 0
 
     while total_training_time < TIME_BUDGET_S:
         epoch += 1
@@ -248,6 +300,23 @@ def main():
             )
             targets = targets.to(device, non_blocking=True)
 
+            targets_a = targets
+            targets_b = None
+            adjusted_lam = 1.0
+            if progress < CUTMIX_END:
+                cutmix_eligible_batches += 1
+                apply_cutmix = (
+                    torch.rand((), generator=cutmix_cpu_generator).item() < CUTMIX_PROB
+                )
+                if apply_cutmix:
+                    inputs, targets_a, targets_b, adjusted_lam, _ = cutmix_batch(
+                        inputs,
+                        targets,
+                        cutmix_cpu_generator,
+                        cutmix_cuda_generator,
+                    )
+                    cutmix_applied_batches += 1
+
             optimizer.zero_grad(set_to_none=True)
             with torch.autocast(
                 device_type=device.type,
@@ -255,7 +324,11 @@ def main():
                 enabled=device.type == "cuda",
             ):
                 outputs = model(inputs, drop_scale=current_drop_scale)
-                loss = F.cross_entropy(outputs, targets)
+                if targets_b is None:
+                    loss = F.cross_entropy(outputs, targets_a)
+                else:
+                    loss = adjusted_lam * F.cross_entropy(outputs, targets_a)
+                    loss += (1.0 - adjusted_lam) * F.cross_entropy(outputs, targets_b)
             loss.backward()
             optimizer.step()
 
@@ -282,6 +355,7 @@ def main():
                     f"\rstep {step:05d} ep {epoch} ({pct_done:.1f}%) | "
                     f"loss: {debiased:.4f} | lr: {lr:.4f} | "
                     f"drop: {effective_drop:.3f} | dt: {dt * 1000:.0f}ms | "
+                    f"mix: {cutmix_applied_batches}/{cutmix_eligible_batches} | "
                     f"img/s: {img_per_sec:,} | rem: {remaining:.0f}s    ",
                     end="",
                     flush=True,
@@ -318,7 +392,12 @@ def main():
     peak_vram_mb = (
         torch.cuda.max_memory_allocated() / 1024 / 1024 if device.type == "cuda" else 0
     )
+    cutmix_ratio = cutmix_applied_batches / max(cutmix_eligible_batches, 1)
 
+    print(
+        f"cutmix: applied={cutmix_applied_batches} "
+        f"eligible={cutmix_eligible_batches} ratio={cutmix_ratio:.4f}"
+    )
     print("---")
     print(f"best_test_acc:    {best_acc:.2f}%")
     print(f"final_test_acc:   {test_acc:.2f}%")
