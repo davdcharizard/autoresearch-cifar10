@@ -220,3 +220,15 @@ __marimo__/
 
 # Codex
 .codex/
+
+# Tree autoresearch plugin
+.tree-autoresearch/
+.claude/hooks/protect-files.sh
+.claude/settings.json
+.codex/hooks/protect-files.sh
+.codex/hooks.json
+.codex/agents/deep-code-explorer.toml
+.codex/agents/idea-developer.toml
+.codex/agents/idea-critic.toml
+.codex/agents/plan-critic.toml
+.codex/agents/tree-explorer.toml
