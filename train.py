@@ -7,7 +7,7 @@ import torch.nn as nn
 import torch.nn.init as init
 import torch.nn.functional as F
 import torch.optim as optim
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, Dataset, Sampler
 from torchvision import datasets, transforms
 
 from prepare import DATASET_DIR, NUM_WORKERS, TIME_BUDGET_S, Eval
@@ -35,6 +35,12 @@ SAM_RHO = 0.05
 SAM_START = 0.75
 SAM_PERIOD = 2
 SAM_EPS = 1e-12
+DLB_TAU = 3.0
+DLB_ALPHA = 1.0
+DLB_HALF = BATCH_SIZE // 2
+DLB_SEED = 42
+if BATCH_SIZE % 2 != 0:
+    raise ValueError("DLB requires an even batch size")
 evaluator = Eval()
 
 
@@ -197,6 +203,48 @@ def restore_sam_parameters(parameters, snapshots):
     torch._foreach_copy_(parameters, snapshots)
 
 
+class IndexedDataset(Dataset):
+    def __init__(self, dataset):
+        self.dataset = dataset
+
+    def __len__(self):
+        return len(self.dataset)
+
+    def __getitem__(self, index):
+        inputs, target = self.dataset[index]
+        return inputs, target, index
+
+
+class OverlappingBatchSampler(Sampler):
+    def __init__(self, dataset_size, half_batch_size, generator):
+        self.dataset_size = dataset_size
+        self.half_batch_size = half_batch_size
+        self.generator = generator
+        self.num_half_batches = dataset_size // half_batch_size
+        self.num_unique_per_epoch = self.num_half_batches * half_batch_size
+
+    def __len__(self):
+        return max(self.num_half_batches - 1, 0)
+
+    def __iter__(self):
+        indices = torch.randperm(self.dataset_size, generator=self.generator)
+        chunks = indices[: self.num_unique_per_epoch].view(
+            self.num_half_batches, self.half_batch_size
+        )
+        for chunk_index in range(len(self)):
+            yield torch.cat((chunks[chunk_index], chunks[chunk_index + 1])).tolist()
+
+
+def dlb_kl_loss(student_logits, teacher_logits):
+    teacher_prob = F.softmax(teacher_logits.detach().float() / DLB_TAU, dim=1)
+    student_log_prob = F.log_softmax(student_logits.float() / DLB_TAU, dim=1)
+    return DLB_TAU**2 * F.kl_div(
+        student_log_prob,
+        teacher_prob,
+        reduction="batchmean",
+    )
+
+
 def cutmix_batch(
     inputs,
     targets,
@@ -269,16 +317,27 @@ def main():
         ]
     )
 
-    train_set = datasets.CIFAR10(
-        DATASET_DIR, train=True, download=True, transform=train_tf
+    train_set = IndexedDataset(
+        datasets.CIFAR10(
+            DATASET_DIR,
+            train=True,
+            download=True,
+            transform=train_tf,
+        )
+    )
+    dlb_sampler_generator = torch.Generator().manual_seed(DLB_SEED)
+    dlb_worker_generator = torch.Generator().manual_seed(DLB_SEED)
+    train_batch_sampler = OverlappingBatchSampler(
+        len(train_set),
+        DLB_HALF,
+        dlb_sampler_generator,
     )
     train_loader = DataLoader(
         train_set,
-        batch_size=BATCH_SIZE,
-        shuffle=True,
+        batch_sampler=train_batch_sampler,
         num_workers=NUM_WORKERS,
         pin_memory=True,
-        drop_last=True,
+        generator=dlb_worker_generator,
     )
 
     model = PreActWideResNet(NUM_CLASSES).to(device, memory_format=torch.channels_last)
@@ -291,7 +350,9 @@ def main():
         f"max_drop_path={MAX_DROP_PATH} eval_every={EVAL_EVERY} "
         f"cutmix_prob={CUTMIX_PROB} cutmix_alpha={CUTMIX_ALPHA} "
         f"cutmix_end={CUTMIX_END} cutmix_seed={CUTMIX_SEED} "
-        f"sam_rho={SAM_RHO} sam_start={SAM_START} sam_period={SAM_PERIOD}"
+        f"sam_rho={SAM_RHO} sam_start={SAM_START} sam_period={SAM_PERIOD} "
+        f"dlb_tau={DLB_TAU} dlb_alpha={DLB_ALPHA} "
+        f"dlb_half={DLB_HALF} dlb_seed={DLB_SEED}"
     )
 
     optimizer = optim.SGD(
@@ -334,12 +395,24 @@ def main():
     sam_applied_batches = 0
     sam_first_step = None
     sam_first_progress = None
+    dlb_clean_batches = 0
+    dlb_active_batches = 0
+    dlb_active_examples = 0
+    dlb_cache_publications = 0
+    dlb_cache_invalidations = 0
+    dlb_cache_resets = 0
+    dlb_overlap_mismatches = 0
+    cached_dlb_logits = None
+    cached_dlb_indices = None
 
     while total_training_time < TIME_BUDGET_S:
         epoch += 1
         model.train()
+        cached_dlb_logits = None
+        cached_dlb_indices = None
+        dlb_cache_resets += 1
 
-        for inputs, targets in train_loader:
+        for inputs, targets, indices in train_loader:
             t0 = time.time()
             progress = min(total_training_time / TIME_BUDGET_S, 1.0)
             next_step = step + 1
@@ -378,6 +451,18 @@ def main():
             if apply_sam and targets_b is not None:
                 raise RuntimeError("SAM and CutMix must not overlap")
 
+            if (cached_dlb_logits is None) != (cached_dlb_indices is None):
+                raise RuntimeError("DLB logits and index caches must have matching state")
+            apply_dlb = targets_b is None and cached_dlb_logits is not None
+            if targets_b is None:
+                dlb_clean_batches += 1
+            if apply_dlb:
+                if not torch.equal(indices[:DLB_HALF], cached_dlb_indices):
+                    dlb_overlap_mismatches += 1
+                    raise RuntimeError("DLB repeated indices do not match cached logits")
+                dlb_active_batches += 1
+                dlb_active_examples += DLB_HALF
+
             cuda_rng_state = torch.cuda.get_rng_state(device) if apply_sam else None
 
             optimizer.zero_grad(set_to_none=True)
@@ -392,6 +477,12 @@ def main():
                 else:
                     loss = adjusted_lam * F.cross_entropy(outputs, targets_a)
                     loss += (1.0 - adjusted_lam) * F.cross_entropy(outputs, targets_b)
+                if apply_dlb:
+                    loss += DLB_ALPHA * dlb_kl_loss(
+                        outputs[:DLB_HALF],
+                        cached_dlb_logits,
+                    )
+            primary_outputs = outputs
             loss.backward()
 
             if apply_sam:
@@ -416,6 +507,11 @@ def main():
                     ):
                         outputs = model(inputs, drop_scale=current_drop_scale)
                         loss = F.cross_entropy(outputs, targets)
+                        if apply_dlb:
+                            loss += DLB_ALPHA * dlb_kl_loss(
+                                outputs[:DLB_HALF],
+                                cached_dlb_logits,
+                            )
                     loss.backward()
                 finally:
                     if bn_tracking_disabled:
@@ -429,6 +525,18 @@ def main():
                         restore_sam_parameters(sam_parameters, sam_snapshots)
 
             optimizer.step()
+
+            if targets_b is None:
+                cached_dlb_logits = (
+                    primary_outputs[DLB_HALF:].detach().float().clone()
+                )
+                cached_dlb_indices = indices[DLB_HALF:].clone()
+                dlb_cache_publications += 1
+            else:
+                if cached_dlb_logits is not None:
+                    dlb_cache_invalidations += 1
+                cached_dlb_logits = None
+                cached_dlb_indices = None
 
             if apply_sam:
                 sam_applied_batches += 1
@@ -508,6 +616,13 @@ def main():
         f"sam: applied={sam_applied_batches} eligible={sam_eligible_batches} "
         f"ratio={sam_ratio:.4f} first_step={sam_first_step or -1} "
         f"first_progress={sam_first_progress if sam_first_progress is not None else -1:.4f}"
+    )
+    print(
+        f"dlb: active_batches={dlb_active_batches} "
+        f"active_examples={dlb_active_examples} clean_batches={dlb_clean_batches} "
+        f"publications={dlb_cache_publications} "
+        f"invalidations={dlb_cache_invalidations} resets={dlb_cache_resets} "
+        f"mismatches={dlb_overlap_mismatches}"
     )
     print("---")
     print(f"best_test_acc:    {best_acc:.2f}%")
