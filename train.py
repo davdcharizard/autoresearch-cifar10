@@ -1,4 +1,5 @@
 import gc
+import math
 import time
 
 import torch
@@ -15,83 +16,142 @@ from prepare import DATASET_DIR, NUM_WORKERS, TIME_BUDGET_S, Eval
 # Hyperparameters (edit these directly)
 # ---------------------------------------------------------------------------
 
-NUM_BLOCKS = 3  # ResNet-20 = 6*3+2
 NUM_CLASSES = 10
-BATCH_SIZE = 128
-LR = 0.1
+BATCH_SIZE = 256
+PEAK_LR = 0.2
+START_LR_RATIO = 0.1
+MIN_LR_RATIO = 0.01
+WARMUP_FRACTION = 0.05
 MOMENTUM = 0.9
 WEIGHT_DECAY = 1e-4
-MAX_STEPS = 64000
+MAX_DROP_PATH = 0.08
+DROP_PATH_DECAY_START = 0.75
+EVAL_EVERY = 1
 evaluator = Eval()
 
 
 # ---------------------------------------------------------------------------
-# ResNet-20 for CIFAR-10 (He et al. 2015, CIFAR variant)
+# Pre-activation Wide ResNet for CIFAR-10
 # ---------------------------------------------------------------------------
 
 
-class BasicBlock(nn.Module):
-    def __init__(self, in_channels, out_channels, stride=1):
+class PreActWideBlock(nn.Module):
+    def __init__(self, in_channels, out_channels, stride, drop_prob):
         super().__init__()
+        self.bn1 = nn.BatchNorm2d(in_channels)
         self.conv1 = nn.Conv2d(
-            in_channels, out_channels, 3, stride=stride, padding=1, bias=False
-        )
-        self.bn1 = nn.BatchNorm2d(out_channels)
-        self.conv2 = nn.Conv2d(
-            out_channels, out_channels, 3, stride=1, padding=1, bias=False
+            in_channels,
+            out_channels,
+            3,
+            stride=stride,
+            padding=1,
+            bias=False,
         )
         self.bn2 = nn.BatchNorm2d(out_channels)
+        self.conv2 = nn.Conv2d(
+            out_channels,
+            out_channels,
+            3,
+            padding=1,
+            bias=False,
+        )
+        self.shortcut = (
+            nn.Conv2d(
+                in_channels,
+                out_channels,
+                1,
+                stride=stride,
+                bias=False,
+            )
+            if stride != 1 or in_channels != out_channels
+            else None
+        )
+        self.drop_prob = drop_prob
 
-        self.stride = stride
-        self.need_pad = stride != 1 or in_channels != out_channels
-        self.pad_channels = out_channels - in_channels if self.need_pad else 0
+    def forward(self, x, drop_scale=0.0):
+        preactivated = F.relu(self.bn1(x))
+        shortcut = self.shortcut(preactivated) if self.shortcut is not None else x
+        out = self.conv1(preactivated)
+        out = self.conv2(F.relu(self.bn2(out)))
 
-    def forward(self, x):
-        out = F.relu(self.bn1(self.conv1(x)))
-        out = self.bn2(self.conv2(out))
-        shortcut = x
-        if self.need_pad:
-            shortcut = shortcut[:, :, :: self.stride, :: self.stride]
-            shortcut = F.pad(shortcut, (0, 0, 0, 0, 0, self.pad_channels))
-        out += shortcut
-        return F.relu(out)
+        drop_prob = self.drop_prob * drop_scale
+        if self.training and drop_prob > 0.0:
+            keep_prob = 1.0 - drop_prob
+            mask = torch.rand(
+                (out.shape[0], 1, 1, 1),
+                device=out.device,
+                dtype=out.dtype,
+            )
+            mask = (mask < keep_prob).to(out.dtype)
+            out = out * mask / keep_prob
+
+        return shortcut + out
 
 
-class ResNet(nn.Module):
-    def __init__(self, num_blocks, num_classes=10):
+class PreActWideResNet(nn.Module):
+    def __init__(self, num_classes=10):
         super().__init__()
-        self.conv1 = nn.Conv2d(3, 16, 3, stride=1, padding=1, bias=False)
-        self.bn1 = nn.BatchNorm2d(16)
-        self.layer1 = self._make_layer(16, 16, num_blocks, stride=1)
-        self.layer2 = self._make_layer(16, 32, num_blocks, stride=2)
-        self.layer3 = self._make_layer(32, 64, num_blocks, stride=2)
-        self.fc = nn.Linear(64, num_classes)
+        self.conv1 = nn.Conv2d(3, 16, 3, padding=1, bias=False)
+
+        block_specs = [
+            (16, 64, 1),
+            (64, 64, 1),
+            (64, 128, 2),
+            (128, 128, 1),
+            (128, 256, 2),
+            (256, 256, 1),
+        ]
+        num_blocks = len(block_specs)
+        self.blocks = nn.ModuleList(
+            [
+                PreActWideBlock(
+                    in_channels,
+                    out_channels,
+                    stride,
+                    MAX_DROP_PATH * (index + 1) / num_blocks,
+                )
+                for index, (in_channels, out_channels, stride) in enumerate(block_specs)
+            ]
+        )
+        self.bn = nn.BatchNorm2d(256)
+        self.fc = nn.Linear(256, num_classes)
         self.apply(self._weights_init)
 
     @staticmethod
-    def _weights_init(m):
-        # Kaiming init normal instead of default uniform per "Delving Deep into Rectifiers" (He et al. 2015), cited as
-        # [13] in the ResNet paper
-        if isinstance(m, (nn.Conv2d, nn.Linear)):
-            init.kaiming_normal_(m.weight)
+    def _weights_init(module):
+        if isinstance(module, (nn.Conv2d, nn.Linear)):
+            init.kaiming_normal_(module.weight)
+            if module.bias is not None:
+                init.zeros_(module.bias)
+        elif isinstance(module, nn.BatchNorm2d):
+            init.ones_(module.weight)
+            init.zeros_(module.bias)
 
-    def _make_layer(self, in_ch, out_ch, num_blocks, stride):
-        strides = [stride] + [1] * (num_blocks - 1)
-        layers = []
-        ch = in_ch
-        for s in strides:
-            layers.append(BasicBlock(ch, out_ch, s))
-            ch = out_ch
-        return nn.Sequential(*layers)
-
-    def forward(self, x):
-        out = F.relu(self.bn1(self.conv1(x)))
-        out = self.layer1(out)
-        out = self.layer2(out)
-        out = self.layer3(out)
+    def forward(self, x, drop_scale=0.0):
+        out = self.conv1(x)
+        for block in self.blocks:
+            out = block(out, drop_scale)
+        out = F.relu(self.bn(out))
         out = F.adaptive_avg_pool2d(out, 1)
-        out = out.view(out.size(0), -1)
-        return self.fc(out)
+        return self.fc(out.flatten(1))
+
+
+def learning_rate(progress):
+    progress = min(max(progress, 0.0), 1.0)
+    if progress < WARMUP_FRACTION:
+        warmup_progress = progress / WARMUP_FRACTION
+        ratio = START_LR_RATIO + (1.0 - START_LR_RATIO) * warmup_progress
+        return PEAK_LR * ratio
+
+    cosine_progress = (progress - WARMUP_FRACTION) / (1.0 - WARMUP_FRACTION)
+    cosine = 0.5 * (1.0 + math.cos(math.pi * cosine_progress))
+    return PEAK_LR * (MIN_LR_RATIO + (1.0 - MIN_LR_RATIO) * cosine)
+
+
+def drop_path_scale(progress):
+    if progress <= DROP_PATH_DECAY_START:
+        return 1.0
+    return max(0.0, (1.0 - progress) / (1.0 - DROP_PATH_DECAY_START))
 
 
 # ---------------------------------------------------------------------------
@@ -100,20 +160,21 @@ class ResNet(nn.Module):
 
 
 def main():
-    # ---------------------------------------------------------------------------
+    # -----------------------------------------------------------------------
     # Setup
-    # ---------------------------------------------------------------------------
+    # -----------------------------------------------------------------------
 
     t_start = time.time()
     torch.manual_seed(42)
     torch.cuda.manual_seed(42)
+    torch.backends.cudnn.benchmark = True
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Device: {device}")
 
     mean, std = (
         (0.4914, 0.4822, 0.4465),
         (1, 1, 1),
-    )  # Yes original paper only mention per-pixel mean and this is per band. See README
+    )
     train_tf = transforms.Compose(
         [
             transforms.RandomCrop(32, padding=4),
@@ -135,22 +196,29 @@ def main():
         drop_last=True,
     )
 
-    model = ResNet(NUM_BLOCKS, NUM_CLASSES).to(device)
-    num_params = sum(p.numel() for p in model.parameters())
-    print(f"ResNet-{6 * NUM_BLOCKS + 2} | params: {num_params:,}")
+    model = PreActWideResNet(NUM_CLASSES).to(device, memory_format=torch.channels_last)
+    num_params = sum(parameter.numel() for parameter in model.parameters())
+    print(f"PreAct WRN-16-4 | params: {num_params:,}")
+    print(
+        "config: architecture=PreActWideResNet "
+        f"params={num_params} peak_lr={PEAK_LR} "
+        f"warmup_fraction={WARMUP_FRACTION} "
+        f"max_drop_path={MAX_DROP_PATH} eval_every={EVAL_EVERY}"
+    )
 
     optimizer = optim.SGD(
-        model.parameters(), lr=LR, momentum=MOMENTUM, weight_decay=WEIGHT_DECAY
-    )
-    scheduler = optim.lr_scheduler.MultiStepLR(
-        optimizer, milestones=[32000, 48000], gamma=0.1
+        model.parameters(),
+        lr=PEAK_LR * START_LR_RATIO,
+        momentum=MOMENTUM,
+        weight_decay=WEIGHT_DECAY,
+        nesterov=True,
     )
     print(f"Time budget: {TIME_BUDGET_S}s")
     print(f"Batches per epoch: {len(train_loader)}")
 
-    # ---------------------------------------------------------------------------
+    # -----------------------------------------------------------------------
     # Training loop (time-budgeted)
-    # ---------------------------------------------------------------------------
+    # -----------------------------------------------------------------------
 
     t_start_training = time.time()
     smooth_train_loss = 0.0
@@ -158,24 +226,41 @@ def main():
     epoch = 0
     step = 0
     best_acc = 0.0
+    test_loss = float("nan")
+    test_acc = float("nan")
 
-    while total_training_time < TIME_BUDGET_S and step < MAX_STEPS:
+    while total_training_time < TIME_BUDGET_S:
         epoch += 1
         model.train()
 
         for inputs, targets in train_loader:
             t0 = time.time()
-            inputs = inputs.to(device, non_blocking=True)
+            progress = min(total_training_time / TIME_BUDGET_S, 1.0)
+            lr = learning_rate(progress)
+            current_drop_scale = drop_path_scale(progress)
+            for param_group in optimizer.param_groups:
+                param_group["lr"] = lr
+
+            inputs = inputs.to(
+                device,
+                non_blocking=True,
+                memory_format=torch.channels_last,
+            )
             targets = targets.to(device, non_blocking=True)
 
-            optimizer.zero_grad()
-            outputs = model(inputs)
-            loss = F.cross_entropy(outputs, targets)
+            optimizer.zero_grad(set_to_none=True)
+            with torch.autocast(
+                device_type=device.type,
+                dtype=torch.bfloat16,
+                enabled=device.type == "cuda",
+            ):
+                outputs = model(inputs, drop_scale=current_drop_scale)
+                loss = F.cross_entropy(outputs, targets)
             loss.backward()
             optimizer.step()
-            scheduler.step()
 
-            torch.cuda.synchronize()
+            if device.type == "cuda":
+                torch.cuda.synchronize()
             dt = time.time() - t0
             total_training_time += dt
             step += 1
@@ -187,36 +272,46 @@ def main():
             )
             debiased = smooth_train_loss / (1 - ema_beta**step)
 
-            lr = optimizer.param_groups[0]["lr"]
             pct_done = 100 * total_training_time / TIME_BUDGET_S
             img_per_sec = int(BATCH_SIZE / dt)
             remaining = max(0, TIME_BUDGET_S - total_training_time)
+            effective_drop = MAX_DROP_PATH * current_drop_scale
 
             if step % 50 == 0:
                 print(
-                    f"\rstep {step:05d} ep {epoch} ({pct_done:.1f}%) | loss: {debiased:.4f} | lr: {lr:.4f} | dt: {dt * 1000:.0f}ms | img/s: {img_per_sec:,} | rem: {remaining:.0f}s    ",
+                    f"\rstep {step:05d} ep {epoch} ({pct_done:.1f}%) | "
+                    f"loss: {debiased:.4f} | lr: {lr:.4f} | "
+                    f"drop: {effective_drop:.3f} | dt: {dt * 1000:.0f}ms | "
+                    f"img/s: {img_per_sec:,} | rem: {remaining:.0f}s    ",
                     end="",
                     flush=True,
                 )
 
-            if total_training_time >= TIME_BUDGET_S or step >= MAX_STEPS:
+            if total_training_time >= TIME_BUDGET_S:
                 break
 
-        test_loss, test_acc = evaluator.evaluate(model, device)
+        budget_exhausted = total_training_time >= TIME_BUDGET_S
+        should_evaluate = epoch % EVAL_EVERY == 0 or budget_exhausted
+        if should_evaluate:
+            eval_started = time.time()
+            test_loss, test_acc = evaluator.evaluate(model, device)
+            eval_seconds = time.time() - eval_started
 
-        if test_acc > best_acc:
-            best_acc = test_acc
+            if test_acc > best_acc:
+                best_acc = test_acc
 
-        print(
-            f"\n  eval ep {epoch:3d} | test_loss: {test_loss:.4f} | test_acc: {test_acc:.2f}% | best: {best_acc:.2f}%"
-        )
+            print(
+                f"\n  eval ep {epoch:3d} | test_loss: {test_loss:.4f} | "
+                f"test_acc: {test_acc:.2f}% | best: {best_acc:.2f}% | "
+                f"eval_s: {eval_seconds:.2f}"
+            )
 
         if epoch == 1:
             gc.collect()
 
-    # ---------------------------------------------------------------------------
+    # -----------------------------------------------------------------------
     # Final summary
-    # ---------------------------------------------------------------------------
+    # -----------------------------------------------------------------------
 
     t_end = time.time()
     startup_time = t_start_training - t_start
