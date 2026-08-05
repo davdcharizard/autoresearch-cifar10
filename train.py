@@ -18,6 +18,7 @@ from prepare import DATASET_DIR, NUM_WORKERS, TIME_BUDGET_S, Eval
 
 NUM_BLOCKS = 3  # ResNet-20 = 6*3+2
 NUM_CLASSES = 10
+WIDTH_MULTIPLIER = 2
 BATCH_SIZE = 128
 LR = 0.1
 ANNEAL_START_LR = 0.01
@@ -63,14 +64,15 @@ class BasicBlock(nn.Module):
 
 
 class ResNet(nn.Module):
-    def __init__(self, num_blocks, num_classes=10):
+    def __init__(self, num_blocks, num_classes=10, width_multiplier=1):
         super().__init__()
-        self.conv1 = nn.Conv2d(3, 16, 3, stride=1, padding=1, bias=False)
-        self.bn1 = nn.BatchNorm2d(16)
-        self.layer1 = self._make_layer(16, 16, num_blocks, stride=1)
-        self.layer2 = self._make_layer(16, 32, num_blocks, stride=2)
-        self.layer3 = self._make_layer(32, 64, num_blocks, stride=2)
-        self.fc = nn.Linear(64, num_classes)
+        c1, c2, c3 = (width_multiplier * channels for channels in (16, 32, 64))
+        self.conv1 = nn.Conv2d(3, c1, 3, stride=1, padding=1, bias=False)
+        self.bn1 = nn.BatchNorm2d(c1)
+        self.layer1 = self._make_layer(c1, c1, num_blocks, stride=1)
+        self.layer2 = self._make_layer(c1, c2, num_blocks, stride=2)
+        self.layer3 = self._make_layer(c2, c3, num_blocks, stride=2)
+        self.fc = nn.Linear(c3, num_classes)
         self.apply(self._weights_init)
 
     @staticmethod
@@ -168,7 +170,7 @@ def main():
     )
     train_loader = make_train_loader(strong_train_tf)
 
-    model = ResNet(NUM_BLOCKS, NUM_CLASSES).to(device)
+    model = ResNet(NUM_BLOCKS, NUM_CLASSES, WIDTH_MULTIPLIER).to(device)
     num_params = sum(p.numel() for p in model.parameters())
     print(f"ResNet-{6 * NUM_BLOCKS + 2} | params: {num_params:,}")
 
