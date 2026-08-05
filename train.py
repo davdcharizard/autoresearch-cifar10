@@ -7,7 +7,8 @@ import torch.nn as nn
 import torch.nn.init as init
 import torch.nn.functional as F
 import torch.optim as optim
-from torch.utils.data import DataLoader
+import torchvision
+from torch.utils.data import DataLoader, get_worker_info
 from torchvision import datasets, transforms
 
 from prepare import DATASET_DIR, NUM_WORKERS, TIME_BUDGET_S, Eval
@@ -31,11 +32,78 @@ CUTMIX_PROB = 0.5
 CUTMIX_ALPHA = 1.0
 CUTMIX_END = 0.75
 CUTMIX_SEED = 42
+RANDAUGMENT_NUM_OPS = 1
+RANDAUGMENT_MAGNITUDE = 5
+RANDAUGMENT_NUM_BINS = 31
+RANDAUGMENT_END = 0.75
+RANDAUGMENT_SEED = 42
 SAM_RHO = 0.05
 SAM_START = 0.75
 SAM_PERIOD = 2
 SAM_EPS = 1e-12
 evaluator = Eval()
+
+
+class PairedRandAugment:
+    def __init__(self, mean, std):
+        self.spatial_transform = transforms.Compose(
+            [
+                transforms.RandomCrop(32, padding=4),
+                transforms.RandomHorizontalFlip(),
+            ]
+        )
+        self.clean_transform = transforms.Compose(
+            [
+                transforms.ToTensor(),
+                transforms.Normalize(mean, std),
+            ]
+        )
+        self.to_uint8 = transforms.PILToTensor()
+        self.randaugment = transforms.RandAugment(
+            num_ops=RANDAUGMENT_NUM_OPS,
+            magnitude=RANDAUGMENT_MAGNITUDE,
+            num_magnitude_bins=RANDAUGMENT_NUM_BINS,
+            interpolation=transforms.InterpolationMode.NEAREST,
+            fill=0,
+        )
+        self.private_generator = None
+        self.private_seed_key = None
+
+    @staticmethod
+    def _seed_key():
+        worker_info = get_worker_info()
+        if worker_info is None:
+            base_seed = RANDAUGMENT_SEED
+            worker_id = 0
+        else:
+            base_seed = int(worker_info.seed)
+            worker_id = int(worker_info.id) + 1
+        key = base_seed ^ (RANDAUGMENT_SEED * 0x9E3779B97F4A7C15)
+        key ^= worker_id * 0xD1B54A32D192ED03
+        return key & ((1 << 63) - 1)
+
+    def _get_private_generator(self):
+        seed_key = self._seed_key()
+        if self.private_generator is None or self.private_seed_key != seed_key:
+            self.private_generator = torch.Generator().manual_seed(seed_key)
+            self.private_seed_key = seed_key
+        return self.private_generator
+
+    def __call__(self, image):
+        image = self.spatial_transform(image)
+        clean_tensor = self.clean_transform(image)
+
+        private_generator = self._get_private_generator()
+        global_state = torch.get_rng_state()
+        torch.set_rng_state(private_generator.get_state())
+        try:
+            augmented_image = self.randaugment(image.copy())
+        finally:
+            private_state = torch.get_rng_state()
+            torch.set_rng_state(global_state)
+            private_generator.set_state(private_state)
+
+        return clean_tensor, self.to_uint8(augmented_image)
 
 
 # ---------------------------------------------------------------------------
@@ -260,14 +328,9 @@ def main():
         (0.4914, 0.4822, 0.4465),
         (1, 1, 1),
     )
-    train_tf = transforms.Compose(
-        [
-            transforms.RandomCrop(32, padding=4),
-            transforms.RandomHorizontalFlip(),
-            transforms.ToTensor(),
-            transforms.Normalize(mean, std),
-        ]
-    )
+    if not (RANDAUGMENT_END == CUTMIX_END == SAM_START):
+        raise RuntimeError("RandAugment, CutMix, and SAM boundaries must match")
+    train_tf = PairedRandAugment(mean, std)
 
     train_set = datasets.CIFAR10(
         DATASET_DIR, train=True, download=True, transform=train_tf
@@ -291,7 +354,28 @@ def main():
         f"max_drop_path={MAX_DROP_PATH} eval_every={EVAL_EVERY} "
         f"cutmix_prob={CUTMIX_PROB} cutmix_alpha={CUTMIX_ALPHA} "
         f"cutmix_end={CUTMIX_END} cutmix_seed={CUTMIX_SEED} "
+        f"randaugment_ops={RANDAUGMENT_NUM_OPS} "
+        f"randaugment_magnitude={RANDAUGMENT_MAGNITUDE} "
+        f"randaugment_bins={RANDAUGMENT_NUM_BINS} "
+        f"randaugment_end={RANDAUGMENT_END} "
+        f"randaugment_seed={RANDAUGMENT_SEED} "
         f"sam_rho={SAM_RHO} sam_start={SAM_START} sam_period={SAM_PERIOD}"
+    )
+    operation_space = train_tf.randaugment._augmentation_space(
+        RANDAUGMENT_NUM_BINS,
+        (32, 32),
+    )
+    operation_values = []
+    for operation_name, (magnitudes, signed) in operation_space.items():
+        value = (
+            "none"
+            if magnitudes.ndim == 0
+            else f"{float(magnitudes[RANDAUGMENT_MAGNITUDE]):.6f}"
+        )
+        operation_values.append(f"{operation_name}:{value}:{int(signed)}")
+    print(
+        f"randaugment_config: torchvision={torchvision.__version__} "
+        "interpolation=nearest fill=0 space=" + ",".join(operation_values)
     )
 
     optimizer = optim.SGD(
@@ -315,6 +399,8 @@ def main():
         for module in model.modules()
         if isinstance(module, nn.modules.batchnorm._BatchNorm)
     ]
+    input_mean = torch.tensor(mean, device=device).view(1, 3, 1, 1)
+    input_std = torch.tensor(std, device=device).view(1, 3, 1, 1)
 
     # -----------------------------------------------------------------------
     # Training loop (time-budgeted)
@@ -330,6 +416,11 @@ def main():
     test_acc = float("nan")
     cutmix_eligible_batches = 0
     cutmix_applied_batches = 0
+    randaugment_eligible_batches = 0
+    randaugment_selected_batches = 0
+    randaugment_selected_images = 0
+    randaugment_last_progress = None
+    randaugment_sam_overlap_failures = 0
     sam_eligible_batches = 0
     sam_applied_batches = 0
     sam_first_step = None
@@ -339,21 +430,36 @@ def main():
         epoch += 1
         model.train()
 
-        for inputs, targets in train_loader:
+        for input_views, targets in train_loader:
             t0 = time.time()
             progress = min(total_training_time / TIME_BUDGET_S, 1.0)
             next_step = step + 1
             apply_sam = sam_is_scheduled(progress, next_step)
+            use_randaugment = progress < RANDAUGMENT_END
             lr = learning_rate(progress)
             current_drop_scale = drop_path_scale(progress)
             for param_group in optimizer.param_groups:
                 param_group["lr"] = lr
 
-            inputs = inputs.to(
-                device,
-                non_blocking=True,
-                memory_format=torch.channels_last,
-            )
+            clean_inputs, augmented_inputs = input_views
+            if use_randaugment:
+                randaugment_eligible_batches += 1
+                randaugment_selected_batches += 1
+                randaugment_selected_images += augmented_inputs.shape[0]
+                randaugment_last_progress = progress
+                inputs = augmented_inputs.to(
+                    device=device,
+                    dtype=torch.float32,
+                    non_blocking=True,
+                    memory_format=torch.channels_last,
+                )
+                inputs.div_(255.0).sub_(input_mean).div_(input_std)
+            else:
+                inputs = clean_inputs.to(
+                    device,
+                    non_blocking=True,
+                    memory_format=torch.channels_last,
+                )
             targets = targets.to(device, non_blocking=True)
 
             targets_a = targets
@@ -377,6 +483,9 @@ def main():
 
             if apply_sam and targets_b is not None:
                 raise RuntimeError("SAM and CutMix must not overlap")
+            if apply_sam and use_randaugment:
+                randaugment_sam_overlap_failures += 1
+                raise RuntimeError("SAM and RandAugment must not overlap")
 
             cuda_rng_state = torch.cuda.get_rng_state(device) if apply_sam else None
 
@@ -498,11 +607,23 @@ def main():
         torch.cuda.max_memory_allocated() / 1024 / 1024 if device.type == "cuda" else 0
     )
     cutmix_ratio = cutmix_applied_batches / max(cutmix_eligible_batches, 1)
+    randaugment_ratio = randaugment_selected_batches / max(
+        randaugment_eligible_batches,
+        1,
+    )
     sam_ratio = sam_applied_batches / max(sam_eligible_batches, 1)
 
     print(
         f"cutmix: applied={cutmix_applied_batches} "
         f"eligible={cutmix_eligible_batches} ratio={cutmix_ratio:.4f}"
+    )
+    print(
+        f"randaugment: selected={randaugment_selected_batches} "
+        f"eligible={randaugment_eligible_batches} ratio={randaugment_ratio:.4f} "
+        f"images={randaugment_selected_images} "
+        f"last_progress={randaugment_last_progress if randaugment_last_progress is not None else -1:.6f} "
+        f"cutoff={RANDAUGMENT_END:.6f} "
+        f"overlap_failures={randaugment_sam_overlap_failures}"
     )
     print(
         f"sam: applied={sam_applied_batches} eligible={sam_eligible_batches} "
