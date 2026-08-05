@@ -31,6 +31,11 @@ CUTMIX_PROB = 0.5
 CUTMIX_ALPHA = 1.0
 CUTMIX_END = 0.75
 CUTMIX_SEED = 42
+MANIFOLD_SHARE = 0.25
+MANIFOLD_ALPHA = 2.0
+MANIFOLD_BOUNDARIES = (2, 4)
+POLICY_SEED = 43
+MANIFOLD_SEED = 44
 SAM_RHO = 0.05
 SAM_START = 0.75
 SAM_PERIOD = 2
@@ -135,10 +140,44 @@ class PreActWideResNet(nn.Module):
             init.ones_(module.weight)
             init.zeros_(module.bias)
 
-    def forward(self, x, drop_scale=0.0):
+    def forward(
+        self,
+        x,
+        drop_scale=0.0,
+        mix_boundary=None,
+        mix_permutation=None,
+        mix_lambda=None,
+    ):
+        mix_arguments = (mix_boundary, mix_permutation, mix_lambda)
+        if any(argument is not None for argument in mix_arguments) and not all(
+            argument is not None for argument in mix_arguments
+        ):
+            raise ValueError("hidden-mix arguments must be provided together")
+        if mix_boundary is not None:
+            if mix_boundary not in MANIFOLD_BOUNDARIES:
+                raise ValueError(f"invalid hidden-mix boundary: {mix_boundary}")
+            if (
+                mix_permutation.ndim != 1
+                or mix_permutation.shape[0] != x.shape[0]
+                or mix_permutation.device != x.device
+            ):
+                raise ValueError("hidden-mix permutation has invalid shape or device")
+            if not 0.0 < float(mix_lambda) < 1.0:
+                raise ValueError(f"invalid hidden-mix lambda: {mix_lambda}")
+
         out = self.conv1(x)
-        for block in self.blocks:
+        mixes_applied = 0
+        for block_index, block in enumerate(self.blocks, start=1):
             out = block(out, drop_scale)
+            if block_index == mix_boundary:
+                paired = out[mix_permutation]
+                out = mix_lambda * out + (1.0 - mix_lambda) * paired
+                out = out.contiguous(memory_format=torch.channels_last)
+                if not out.is_contiguous(memory_format=torch.channels_last):
+                    raise RuntimeError("hidden mix did not preserve channels-last layout")
+                mixes_applied += 1
+        if mix_boundary is not None and mixes_applied != 1:
+            raise RuntimeError(f"hidden mix executed {mixes_applied} times")
         out = F.relu(self.bn(out))
         out = F.adaptive_avg_pool2d(out, 1)
         return self.fc(out.flatten(1))
@@ -195,6 +234,27 @@ def sam_perturb(parameters, snapshots):
 @torch.no_grad()
 def restore_sam_parameters(parameters, snapshots):
     torch._foreach_copy_(parameters, snapshots)
+
+
+def sample_cutmix_spec(inputs, cpu_generator, cuda_generator):
+    height, width = inputs.shape[-2:]
+    lam = torch.rand((), generator=cpu_generator).item()
+    center = (
+        int(torch.randint(width, (), generator=cpu_generator).item()),
+        int(torch.randint(height, (), generator=cpu_generator).item()),
+    )
+    permutation = torch.randperm(
+        inputs.shape[0], device=inputs.device, generator=cuda_generator
+    )
+    return lam, center, permutation
+
+
+def sample_manifold_lambda(cpu_generator):
+    uniforms = torch.rand(4, generator=cpu_generator)
+    uniforms.clamp_min_(torch.finfo(uniforms.dtype).tiny)
+    gamma_a = -torch.log(uniforms[:2]).sum()
+    gamma_b = -torch.log(uniforms[2:]).sum()
+    return (gamma_a / (gamma_a + gamma_b)).item()
 
 
 def cutmix_batch(
@@ -291,6 +351,9 @@ def main():
         f"max_drop_path={MAX_DROP_PATH} eval_every={EVAL_EVERY} "
         f"cutmix_prob={CUTMIX_PROB} cutmix_alpha={CUTMIX_ALPHA} "
         f"cutmix_end={CUTMIX_END} cutmix_seed={CUTMIX_SEED} "
+        f"manifold_share={MANIFOLD_SHARE} manifold_alpha={MANIFOLD_ALPHA} "
+        f"manifold_boundaries={MANIFOLD_BOUNDARIES} "
+        f"policy_seed={POLICY_SEED} manifold_seed={MANIFOLD_SEED} "
         f"sam_rho={SAM_RHO} sam_start={SAM_START} sam_period={SAM_PERIOD}"
     )
 
@@ -305,6 +368,9 @@ def main():
     print(f"Batches per epoch: {len(train_loader)}")
     cutmix_cpu_generator = torch.Generator().manual_seed(CUTMIX_SEED)
     cutmix_cuda_generator = torch.Generator(device=device).manual_seed(CUTMIX_SEED)
+    policy_cpu_generator = torch.Generator().manual_seed(POLICY_SEED)
+    manifold_cpu_generator = torch.Generator().manual_seed(MANIFOLD_SEED)
+    manifold_cuda_generator = torch.Generator(device=device).manual_seed(MANIFOLD_SEED)
     sam_parameters = [parameter for parameter in model.parameters() if parameter.requires_grad]
     sam_snapshots = [
         torch.empty_like(parameter, memory_format=torch.preserve_format)
@@ -330,6 +396,15 @@ def main():
     test_acc = float("nan")
     cutmix_eligible_batches = 0
     cutmix_applied_batches = 0
+    mix_selected_batches = 0
+    mix_clean_batches = 0
+    manifold_applied_batches = 0
+    manifold_boundary_2_batches = 0
+    manifold_boundary_4_batches = 0
+    discarded_cutmix_specs = 0
+    manifold_lambda_sum = 0.0
+    manifold_min_lambda_sum = 0.0
+    late_mix_batches = 0
     sam_eligible_batches = 0
     sam_applied_batches = 0
     sam_first_step = None
@@ -359,24 +434,62 @@ def main():
             targets_a = targets
             targets_b = None
             adjusted_lam = 1.0
+            mix_boundary = None
+            mix_permutation = None
+            mix_lambda = None
             if progress >= SAM_START:
                 sam_eligible_batches += 1
             if progress < CUTMIX_END:
                 cutmix_eligible_batches += 1
-                apply_cutmix = (
+                apply_mix = (
                     torch.rand((), generator=cutmix_cpu_generator).item() < CUTMIX_PROB
                 )
-                if apply_cutmix:
-                    inputs, targets_a, targets_b, adjusted_lam, _ = cutmix_batch(
-                        inputs,
-                        targets,
-                        cutmix_cpu_generator,
-                        cutmix_cuda_generator,
+                if apply_mix:
+                    mix_selected_batches += 1
+                    cutmix_spec = sample_cutmix_spec(
+                        inputs, cutmix_cpu_generator, cutmix_cuda_generator
                     )
-                    cutmix_applied_batches += 1
+                    apply_manifold = (
+                        torch.rand((), generator=policy_cpu_generator).item()
+                        < MANIFOLD_SHARE
+                    )
+                    if apply_manifold:
+                        discarded_cutmix_specs += 1
+                        manifold_applied_batches += 1
+                        boundary_index = int(
+                            torch.randint(2, (), generator=policy_cpu_generator).item()
+                        )
+                        mix_boundary = MANIFOLD_BOUNDARIES[boundary_index]
+                        if mix_boundary == 2:
+                            manifold_boundary_2_batches += 1
+                        else:
+                            manifold_boundary_4_batches += 1
+                        mix_lambda = sample_manifold_lambda(manifold_cpu_generator)
+                        mix_permutation = torch.randperm(
+                            inputs.shape[0],
+                            device=inputs.device,
+                            generator=manifold_cuda_generator,
+                        )
+                        targets_b = targets[mix_permutation]
+                        adjusted_lam = mix_lambda
+                        manifold_lambda_sum += mix_lambda
+                        manifold_min_lambda_sum += min(mix_lambda, 1.0 - mix_lambda)
+                    else:
+                        inputs, targets_a, targets_b, adjusted_lam, _ = cutmix_batch(
+                            inputs,
+                            targets,
+                            cutmix_cpu_generator,
+                            cutmix_cuda_generator,
+                            *cutmix_spec,
+                        )
+                        cutmix_applied_batches += 1
+                else:
+                    mix_clean_batches += 1
+            elif mix_boundary is not None:
+                late_mix_batches += 1
 
             if apply_sam and targets_b is not None:
-                raise RuntimeError("SAM and CutMix must not overlap")
+                raise RuntimeError("SAM and mixed targets must not overlap")
 
             cuda_rng_state = torch.cuda.get_rng_state(device) if apply_sam else None
 
@@ -386,7 +499,13 @@ def main():
                 dtype=torch.bfloat16,
                 enabled=device.type == "cuda",
             ):
-                outputs = model(inputs, drop_scale=current_drop_scale)
+                outputs = model(
+                    inputs,
+                    drop_scale=current_drop_scale,
+                    mix_boundary=mix_boundary,
+                    mix_permutation=mix_permutation,
+                    mix_lambda=mix_lambda,
+                )
                 if targets_b is None:
                     loss = F.cross_entropy(outputs, targets_a)
                 else:
@@ -459,7 +578,8 @@ def main():
                     f"\rstep {step:05d} ep {epoch} ({pct_done:.1f}%) | "
                     f"loss: {debiased:.4f} | lr: {lr:.4f} | "
                     f"drop: {effective_drop:.3f} | dt: {dt * 1000:.0f}ms | "
-                    f"mix: {cutmix_applied_batches}/{cutmix_eligible_batches} | "
+                    f"mix: {mix_selected_batches}/{cutmix_eligible_batches} "
+                    f"(cut={cutmix_applied_batches} man={manifold_applied_batches}) | "
                     f"sam: {sam_applied_batches}/{sam_eligible_batches} | "
                     f"img/s: {img_per_sec:,} | rem: {remaining:.0f}s    ",
                     end="",
@@ -498,11 +618,33 @@ def main():
         torch.cuda.max_memory_allocated() / 1024 / 1024 if device.type == "cuda" else 0
     )
     cutmix_ratio = cutmix_applied_batches / max(cutmix_eligible_batches, 1)
+    mix_selected_ratio = mix_selected_batches / max(cutmix_eligible_batches, 1)
+    manifold_ratio = manifold_applied_batches / max(cutmix_eligible_batches, 1)
+    manifold_selected_share = manifold_applied_batches / max(mix_selected_batches, 1)
+    manifold_lambda_mean = manifold_lambda_sum / max(manifold_applied_batches, 1)
+    manifold_min_lambda_mean = manifold_min_lambda_sum / max(
+        manifold_applied_batches, 1
+    )
     sam_ratio = sam_applied_batches / max(sam_eligible_batches, 1)
 
     print(
+        f"mix_policy: selected={mix_selected_batches} clean={mix_clean_batches} "
+        f"eligible={cutmix_eligible_batches} ratio={mix_selected_ratio:.4f} "
+        f"late={late_mix_batches}"
+    )
+    print(
         f"cutmix: applied={cutmix_applied_batches} "
         f"eligible={cutmix_eligible_batches} ratio={cutmix_ratio:.4f}"
+    )
+    print(
+        f"manifold: applied={manifold_applied_batches} "
+        f"eligible={cutmix_eligible_batches} ratio={manifold_ratio:.4f} "
+        f"selected_share={manifold_selected_share:.4f} "
+        f"boundary2={manifold_boundary_2_batches} "
+        f"boundary4={manifold_boundary_4_batches} "
+        f"discarded_cutmix_specs={discarded_cutmix_specs} "
+        f"lambda_mean={manifold_lambda_mean:.6f} "
+        f"min_lambda_mean={manifold_min_lambda_mean:.6f}"
     )
     print(
         f"sam: applied={sam_applied_batches} eligible={sam_eligible_batches} "
