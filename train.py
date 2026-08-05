@@ -1,4 +1,5 @@
 import gc
+import math
 import time
 
 import torch
@@ -19,9 +20,13 @@ NUM_BLOCKS = 3  # ResNet-20 = 6*3+2
 NUM_CLASSES = 10
 BATCH_SIZE = 128
 LR = 0.1
+ANNEAL_START_LR = 0.01
+MIN_LR = 1e-4
+LR_HOLD_FRACTION = 0.8
 MOMENTUM = 0.9
 WEIGHT_DECAY = 1e-4
 MAX_STEPS = 64000
+EVAL_CHECKPOINTS = (0.2, 0.4, 0.6, 0.7)
 evaluator = Eval()
 
 
@@ -133,6 +138,7 @@ def main():
         num_workers=NUM_WORKERS,
         pin_memory=True,
         drop_last=True,
+        persistent_workers=True,
     )
 
     model = ResNet(NUM_BLOCKS, NUM_CLASSES).to(device)
@@ -141,9 +147,6 @@ def main():
 
     optimizer = optim.SGD(
         model.parameters(), lr=LR, momentum=MOMENTUM, weight_decay=WEIGHT_DECAY
-    )
-    scheduler = optim.lr_scheduler.MultiStepLR(
-        optimizer, milestones=[32000, 48000], gamma=0.1
     )
     print(f"Time budget: {TIME_BUDGET_S}s")
     print(f"Batches per epoch: {len(train_loader)}")
@@ -158,6 +161,9 @@ def main():
     epoch = 0
     step = 0
     best_acc = 0.0
+    test_loss = None
+    test_acc = None
+    eval_checkpoint_index = 0
 
     while total_training_time < TIME_BUDGET_S and step < MAX_STEPS:
         epoch += 1
@@ -168,12 +174,24 @@ def main():
             inputs = inputs.to(device, non_blocking=True)
             targets = targets.to(device, non_blocking=True)
 
+            progress = min(total_training_time / TIME_BUDGET_S, 1.0)
+            if progress <= LR_HOLD_FRACTION:
+                lr = LR
+            else:
+                cosine_progress = (progress - LR_HOLD_FRACTION) / (
+                    1.0 - LR_HOLD_FRACTION
+                )
+                lr = MIN_LR + 0.5 * (ANNEAL_START_LR - MIN_LR) * (
+                    1.0 + math.cos(math.pi * cosine_progress)
+                )
+            for group in optimizer.param_groups:
+                group["lr"] = lr
+
             optimizer.zero_grad()
             outputs = model(inputs)
             loss = F.cross_entropy(outputs, targets)
             loss.backward()
             optimizer.step()
-            scheduler.step()
 
             torch.cuda.synchronize()
             dt = time.time() - t0
@@ -187,7 +205,6 @@ def main():
             )
             debiased = smooth_train_loss / (1 - ema_beta**step)
 
-            lr = optimizer.param_groups[0]["lr"]
             pct_done = 100 * total_training_time / TIME_BUDGET_S
             img_per_sec = int(BATCH_SIZE / dt)
             remaining = max(0, TIME_BUDGET_S - total_training_time)
@@ -202,14 +219,28 @@ def main():
             if total_training_time >= TIME_BUDGET_S or step >= MAX_STEPS:
                 break
 
-        test_loss, test_acc = evaluator.evaluate(model, device)
-
-        if test_acc > best_acc:
-            best_acc = test_acc
-
-        print(
-            f"\n  eval ep {epoch:3d} | test_loss: {test_loss:.4f} | test_acc: {test_acc:.2f}% | best: {best_acc:.2f}%"
+        progress = min(total_training_time / TIME_BUDGET_S, 1.0)
+        training_done = total_training_time >= TIME_BUDGET_S or step >= MAX_STEPS
+        checkpoint_due = (
+            eval_checkpoint_index < len(EVAL_CHECKPOINTS)
+            and progress >= EVAL_CHECKPOINTS[eval_checkpoint_index]
         )
+        dense_tail_due = progress >= LR_HOLD_FRACTION
+        if checkpoint_due or dense_tail_due or training_done:
+            test_loss, test_acc = evaluator.evaluate(model, device)
+
+            if test_acc > best_acc:
+                best_acc = test_acc
+
+            print(
+                f"\n  eval ep {epoch:3d} | test_loss: {test_loss:.4f} | test_acc: {test_acc:.2f}% | best: {best_acc:.2f}%"
+            )
+
+            while (
+                eval_checkpoint_index < len(EVAL_CHECKPOINTS)
+                and progress >= EVAL_CHECKPOINTS[eval_checkpoint_index]
+            ):
+                eval_checkpoint_index += 1
 
         if epoch == 1:
             gc.collect()
@@ -218,6 +249,7 @@ def main():
     # Final summary
     # ---------------------------------------------------------------------------
 
+    assert test_loss is not None and test_acc is not None
     t_end = time.time()
     startup_time = t_start_training - t_start
     peak_vram_mb = (
