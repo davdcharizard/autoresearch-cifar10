@@ -104,6 +104,36 @@ class ResNet(nn.Module):
 # ---------------------------------------------------------------------------
 
 
+def make_train_loader(transform):
+    train_set = datasets.CIFAR10(
+        DATASET_DIR, train=True, download=True, transform=transform
+    )
+    return DataLoader(
+        train_set,
+        batch_size=BATCH_SIZE,
+        shuffle=True,
+        num_workers=NUM_WORKERS,
+        pin_memory=True,
+        drop_last=True,
+        persistent_workers=True,
+        multiprocessing_context="forkserver",
+    )
+
+
+def shutdown_train_loader(loader):
+    iterator = getattr(loader, "_iterator", None)
+    if iterator is None:
+        return []
+
+    workers = list(iterator._workers)
+    worker_pids = [worker.pid for worker in workers]
+    iterator._shutdown_workers()
+    loader._iterator = None
+    if any(worker.is_alive() for worker in workers):
+        raise RuntimeError("training DataLoader workers did not shut down")
+    return worker_pids
+
+
 def main():
     # ---------------------------------------------------------------------------
     # Setup
@@ -119,7 +149,7 @@ def main():
         (0.4914, 0.4822, 0.4465),
         (1, 1, 1),
     )  # Yes original paper only mention per-pixel mean and this is per band. See README
-    train_tf = transforms.Compose(
+    weak_train_tf = transforms.Compose(
         [
             transforms.RandomCrop(32, padding=4),
             transforms.RandomHorizontalFlip(),
@@ -127,19 +157,16 @@ def main():
             transforms.Normalize(mean, std),
         ]
     )
-
-    train_set = datasets.CIFAR10(
-        DATASET_DIR, train=True, download=True, transform=train_tf
+    strong_train_tf = transforms.Compose(
+        [
+            transforms.RandomCrop(32, padding=4),
+            transforms.RandomHorizontalFlip(),
+            transforms.RandAugment(num_ops=1, magnitude=7),
+            transforms.ToTensor(),
+            transforms.Normalize(mean, std),
+        ]
     )
-    train_loader = DataLoader(
-        train_set,
-        batch_size=BATCH_SIZE,
-        shuffle=True,
-        num_workers=NUM_WORKERS,
-        pin_memory=True,
-        drop_last=True,
-        persistent_workers=True,
-    )
+    train_loader = make_train_loader(strong_train_tf)
 
     model = ResNet(NUM_BLOCKS, NUM_CLASSES).to(device)
     num_params = sum(p.numel() for p in model.parameters())
@@ -164,12 +191,14 @@ def main():
     test_loss = None
     test_acc = None
     eval_checkpoint_index = 0
+    randaugment_enabled = True
 
     while total_training_time < TIME_BUDGET_S and step < MAX_STEPS:
         epoch += 1
         model.train()
 
-        for inputs, targets in train_loader:
+        train_iterator = iter(train_loader)
+        for inputs, targets in train_iterator:
             t0 = time.time()
             inputs = inputs.to(device, non_blocking=True)
             targets = targets.to(device, non_blocking=True)
@@ -218,6 +247,13 @@ def main():
 
             if total_training_time >= TIME_BUDGET_S or step >= MAX_STEPS:
                 break
+            if (
+                randaugment_enabled
+                and total_training_time >= LR_HOLD_FRACTION * TIME_BUDGET_S
+            ):
+                break
+
+        train_iterator = None
 
         progress = min(total_training_time / TIME_BUDGET_S, 1.0)
         training_done = total_training_time >= TIME_BUDGET_S or step >= MAX_STEPS
@@ -241,6 +277,17 @@ def main():
                 and progress >= EVAL_CHECKPOINTS[eval_checkpoint_index]
             ):
                 eval_checkpoint_index += 1
+
+        if randaugment_enabled and progress >= LR_HOLD_FRACTION:
+            worker_pids = shutdown_train_loader(train_loader)
+            del train_loader
+            gc.collect()
+            train_loader = make_train_loader(weak_train_tf)
+            randaugment_enabled = False
+            print(
+                f"augmentation_switch: randaugment->base | epoch: {epoch} | "
+                f"progress: {100 * progress:.1f}% | workers_stopped: {len(worker_pids)}"
+            )
 
         if epoch == 1:
             gc.collect()
