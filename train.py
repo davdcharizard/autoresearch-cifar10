@@ -7,8 +7,9 @@ import torch.nn as nn
 import torch.nn.init as init
 import torch.nn.functional as F
 import torch.optim as optim
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, default_collate
 from torchvision import datasets, transforms
+from torchvision.transforms import v2
 
 from prepare import DATASET_DIR, NUM_WORKERS, TIME_BUDGET_S, Eval
 
@@ -18,6 +19,8 @@ from prepare import DATASET_DIR, NUM_WORKERS, TIME_BUDGET_S, Eval
 
 NUM_BLOCKS = 3  # ResNet-20 = 6*3+2
 NUM_CLASSES = 10
+CUTMIX_ALPHA = 1.0
+CUTMIX_PROBABILITY = 0.5
 WIDTH_MULTIPLIER = 2
 BATCH_SIZE = 128
 LR = 0.1
@@ -28,6 +31,7 @@ MOMENTUM = 0.9
 WEIGHT_DECAY = 1e-4
 MAX_STEPS = 64000
 EVAL_CHECKPOINTS = (0.2, 0.4, 0.6, 0.7)
+cutmix = v2.CutMix(alpha=CUTMIX_ALPHA, num_classes=NUM_CLASSES)
 evaluator = Eval()
 
 
@@ -106,7 +110,15 @@ class ResNet(nn.Module):
 # ---------------------------------------------------------------------------
 
 
-def make_train_loader(transform):
+def cutmix_collate(batch):
+    inputs, targets = default_collate(batch)
+    with torch.random.fork_rng(devices=[]):
+        if torch.rand(()).item() < CUTMIX_PROBABILITY:
+            return cutmix(inputs, targets)
+    return inputs, targets
+
+
+def make_train_loader(transform, collate_fn=None):
     train_set = datasets.CIFAR10(
         DATASET_DIR, train=True, download=True, transform=transform
     )
@@ -119,6 +131,7 @@ def make_train_loader(transform):
         drop_last=True,
         persistent_workers=True,
         multiprocessing_context="forkserver",
+        collate_fn=collate_fn,
     )
 
 
@@ -168,7 +181,7 @@ def main():
             transforms.Normalize(mean, std),
         ]
     )
-    train_loader = make_train_loader(strong_train_tf)
+    train_loader = make_train_loader(strong_train_tf, collate_fn=cutmix_collate)
 
     model = ResNet(NUM_BLOCKS, NUM_CLASSES, WIDTH_MULTIPLIER).to(device)
     num_params = sum(p.numel() for p in model.parameters())
@@ -194,6 +207,8 @@ def main():
     test_acc = None
     eval_checkpoint_index = 0
     randaugment_enabled = True
+    strong_batch_count = 0
+    cutmix_batch_count = 0
 
     while total_training_time < TIME_BUDGET_S and step < MAX_STEPS:
         epoch += 1
@@ -201,6 +216,12 @@ def main():
 
         train_iterator = iter(train_loader)
         for inputs, targets in train_iterator:
+            if randaugment_enabled:
+                strong_batch_count += 1
+                cutmix_batch_count += int(targets.ndim == 2)
+            else:
+                assert targets.ndim == 1
+
             t0 = time.time()
             inputs = inputs.to(device, non_blocking=True)
             targets = targets.to(device, non_blocking=True)
@@ -287,8 +308,9 @@ def main():
             train_loader = make_train_loader(weak_train_tf)
             randaugment_enabled = False
             print(
-                f"augmentation_switch: randaugment->base | epoch: {epoch} | "
-                f"progress: {100 * progress:.1f}% | workers_stopped: {len(worker_pids)}"
+                f"augmentation_switch: randaugment+cutmix->base | epoch: {epoch} | "
+                f"progress: {100 * progress:.1f}% | workers_stopped: {len(worker_pids)} | "
+                f"cutmix_batches: {cutmix_batch_count}/{strong_batch_count}"
             )
 
         if epoch == 1:
