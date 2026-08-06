@@ -112,8 +112,8 @@ class PreActWideResNet(nn.Module):
             (64, 64, 1),
             (64, 128, 2),
             (128, 128, 1),
-            (128, 256, 2),
-            (256, 256, 1),
+            (128, 288, 2),
+            (288, 288, 1),
         ]
         num_blocks = len(block_specs)
         self.blocks = nn.ModuleList(
@@ -127,8 +127,8 @@ class PreActWideResNet(nn.Module):
                 for index, (in_channels, out_channels, stride) in enumerate(block_specs)
             ]
         )
-        self.bn = nn.BatchNorm2d(256)
-        self.fc = nn.Linear(256, num_classes)
+        self.bn = nn.BatchNorm2d(288)
+        self.fc = nn.Linear(288, num_classes)
         self.apply(self._weights_init)
 
     @staticmethod
@@ -704,9 +704,9 @@ def main():
 
     model = PreActWideResNet(NUM_CLASSES).to(device, memory_format=torch.channels_last)
     num_params = sum(parameter.numel() for parameter in model.parameters())
-    print(f"PreAct WRN-16-4 | params: {num_params:,}")
+    print(f"PreAct WRN-16-[4,4,4.5] | params: {num_params:,}")
     print(
-        "config: architecture=PreActWideResNet "
+        "config: architecture=PreActWideResNet stage_widths=64,128,288 "
         f"params={num_params} peak_lr={PEAK_LR} "
         f"warmup_fraction={WARMUP_FRACTION} "
         f"max_drop_path={MAX_DROP_PATH} eval_every={EVAL_EVERY} "
