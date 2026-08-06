@@ -35,6 +35,7 @@ SAM_RHO = 0.05
 SAM_START = 0.75
 SAM_PERIOD = 2
 SAM_EPS = 1e-12
+POLY1_EPSILON = -0.25
 EMA_START = 0.75
 EMA_UPDATE_EVERY = 31
 EMA_TAIL_HALF_LIVES = 4.0
@@ -243,6 +244,74 @@ def cutmix_batch(
 
     adjusted_lam = 1.0 - area / (height * width)
     return inputs, targets, paired_targets, adjusted_lam, area
+
+
+class ConfidenceAttenuatingLoss:
+    def __init__(self):
+        self.counts = {
+            "ordinary_poly": 0,
+            "cutmix_poly": 0,
+            "sam_ascent_ce": 0,
+            "sam_descent_poly": 0,
+        }
+
+    def poly1(self, logits, targets_a, category, targets_b=None, lam=1.0):
+        if category not in ("ordinary_poly", "cutmix_poly", "sam_descent_poly"):
+            raise RuntimeError(f"invalid Poly-1 category: {category}")
+        if (category == "cutmix_poly") != (targets_b is not None):
+            raise RuntimeError("Poly-1 category/target mismatch")
+        self.counts[category] += 1
+
+        probability_dtype = (
+            torch.float32
+            if logits.dtype in (torch.float16, torch.bfloat16)
+            else logits.dtype
+        )
+        probabilities = torch.softmax(logits, dim=1, dtype=probability_dtype)
+        probability_a = probabilities.gather(1, targets_a[:, None]).squeeze(1)
+        cross_entropy = F.cross_entropy(logits, targets_a)
+        target_probability = probability_a
+        if targets_b is not None:
+            probability_b = probabilities.gather(1, targets_b[:, None]).squeeze(1)
+            cross_entropy = lam * cross_entropy
+            cross_entropy += (1.0 - lam) * F.cross_entropy(logits, targets_b)
+            target_probability = lam * probability_a + (1.0 - lam) * probability_b
+
+        poly1 = POLY1_EPSILON * (1.0 - target_probability).mean()
+        return cross_entropy + poly1
+
+    def sam_ascent_ce(self, logits, targets):
+        self.counts["sam_ascent_ce"] += 1
+        return F.cross_entropy(logits, targets)
+
+    def audit_lines(self, steps, cutmix_applied, sam_applied):
+        ordinary = self.counts["ordinary_poly"]
+        cutmix = self.counts["cutmix_poly"]
+        ascent = self.counts["sam_ascent_ce"]
+        descent = self.counts["sam_descent_poly"]
+        poly_calls = ordinary + cutmix + descent
+        total_calls = ordinary + cutmix + ascent + descent
+        if ordinary + cutmix + ascent != steps:
+            raise RuntimeError("primary loss-call count mismatch")
+        if ascent != descent or ascent != sam_applied:
+            raise RuntimeError("SAM loss-call count mismatch")
+        if cutmix != cutmix_applied:
+            raise RuntimeError("CutMix loss-call count mismatch")
+        if poly_calls != steps or total_calls != steps + sam_applied:
+            raise RuntimeError("total loss-call count mismatch")
+        if cutmix and ascent and CUTMIX_END > SAM_START:
+            raise RuntimeError("CutMix and SAM schedules overlap")
+        return [
+            (
+                f"poly1: epsilon={POLY1_EPSILON} hard_multiplier_min=0.75 "
+                f"hard_multiplier_max=1.0 probability_dtype=float32"
+            ),
+            (
+                f"poly1_calls: ordinary={ordinary} cutmix={cutmix} "
+                f"sam_ascent_ce={ascent} sam_descent_poly={descent} "
+                f"poly={poly_calls} total={total_calls}"
+            ),
+        ]
 
 
 class ChargedTimeEMA:
@@ -713,6 +782,7 @@ def main():
         f"cutmix_prob={CUTMIX_PROB} cutmix_alpha={CUTMIX_ALPHA} "
         f"cutmix_end={CUTMIX_END} cutmix_seed={CUTMIX_SEED} "
         f"sam_rho={SAM_RHO} sam_start={SAM_START} sam_period={SAM_PERIOD} "
+        f"loss=confidence_attenuating_poly1 poly1_epsilon={POLY1_EPSILON} "
         f"ema_start={EMA_START} ema_update_every={EMA_UPDATE_EVERY} "
         f"ema_tail_half_lives={EMA_TAIL_HALF_LIVES} "
         f"ema_half_life_s={EMA_HALF_LIFE_S}"
@@ -750,6 +820,7 @@ def main():
         for module in model.modules()
         if isinstance(module, nn.modules.batchnorm._BatchNorm)
     ]
+    training_loss = ConfidenceAttenuatingLoss()
 
     # -----------------------------------------------------------------------
     # Training loop (time-budgeted)
@@ -823,11 +894,22 @@ def main():
                 enabled=device.type == "cuda",
             ):
                 outputs = model(inputs, drop_scale=current_drop_scale)
-                if targets_b is None:
-                    loss = F.cross_entropy(outputs, targets_a)
+                if apply_sam:
+                    loss = training_loss.sam_ascent_ce(outputs, targets)
+                elif targets_b is None:
+                    loss = training_loss.poly1(
+                        outputs,
+                        targets_a,
+                        category="ordinary_poly",
+                    )
                 else:
-                    loss = adjusted_lam * F.cross_entropy(outputs, targets_a)
-                    loss += (1.0 - adjusted_lam) * F.cross_entropy(outputs, targets_b)
+                    loss = training_loss.poly1(
+                        outputs,
+                        targets_a,
+                        category="cutmix_poly",
+                        targets_b=targets_b,
+                        lam=adjusted_lam,
+                    )
             loss.backward()
 
             if apply_sam:
@@ -851,7 +933,11 @@ def main():
                         enabled=device.type == "cuda",
                     ):
                         outputs = model(inputs, drop_scale=current_drop_scale)
-                        loss = F.cross_entropy(outputs, targets)
+                        loss = training_loss.poly1(
+                            outputs,
+                            targets,
+                            category="sam_descent_poly",
+                        )
                     loss.backward()
                 finally:
                     if bn_tracking_disabled:
@@ -930,7 +1016,9 @@ def main():
             print(
                 f"\n  eval ep {epoch:3d} | test_loss: {test_loss:.4f} | "
                 f"test_acc: {test_acc:.2f}% | best: {best_acc:.2f}% | "
-                f"source: {eval_source} | eval_s: {eval_seconds:.2f}"
+                f"source: {eval_source} | eval_s: {eval_seconds:.2f} | "
+                f"charged_s: {total_training_time:.3f} | "
+                f"progress: {min(total_training_time / TIME_BUDGET_S, 1.0):.6f}"
             )
 
         if epoch == 1:
@@ -947,11 +1035,17 @@ def main():
         if abs(model_ema.ordinary_samples - model_ema.sam_samples) > 1:
             raise RuntimeError("EMA ordinary/SAM sample parity mismatch")
         ema_audit_lines = model_ema.audit_lines()
+        loss_audit_lines = training_loss.audit_lines(
+            step,
+            cutmix_applied_batches,
+            sam_applied_batches,
+        )
     except Exception as error:
         final_audit_error = error
         ema_audit_lines = [
             f"ema_audit_failed: {type(error).__name__}: {error}"
         ]
+        loss_audit_lines = []
     t_end = time.time()
     startup_time = t_start_training - t_start
     peak_vram_mb = (
@@ -971,6 +1065,8 @@ def main():
     )
     for audit_line in ema_audit_lines:
         print(audit_line)
+    for audit_line in loss_audit_lines:
+        print(audit_line)
     print("---")
     print(f"best_test_acc:    {best_acc:.2f}%")
     print(f"final_test_acc:   {test_acc:.2f}%")
@@ -982,6 +1078,7 @@ def main():
     print(f"num_epochs:       {epoch}")
     print(f"num_steps:        {step}")
     print(f"num_params:       {num_params:,}")
+    print(f"final_train_loss_ema: {debiased:.6f}")
     if final_audit_error is not None:
         raise RuntimeError("EMA final audit failed") from final_audit_error
 
