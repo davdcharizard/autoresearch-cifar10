@@ -31,6 +31,9 @@ CUTMIX_PROB = 0.5
 CUTMIX_ALPHA = 1.0
 CUTMIX_END = 0.75
 CUTMIX_SEED = 42
+LOOKAHEAD_K = 5
+LOOKAHEAD_ALPHA = 0.5
+LOOKAHEAD_AUDIT_EVERY_SYNCS = 128
 evaluator = Eval()
 
 
@@ -200,6 +203,27 @@ def cutmix_batch(
     return inputs, targets, paired_targets, adjusted_lam, area
 
 
+@torch.no_grad()
+def lookahead_distance_stats(fast_parameters, slow_parameters):
+    """Return fixed device scalars without retaining parameter-sized temporaries."""
+    device = fast_parameters[0].device
+    distance_sq = torch.zeros((), device=device, dtype=torch.float64)
+    fast_sq = torch.zeros((), device=device, dtype=torch.float64)
+    for fast, slow in zip(fast_parameters, slow_parameters, strict=True):
+        delta = fast.detach() - slow
+        distance_sq.add_(delta.square().sum(dtype=torch.float64))
+        fast_sq.add_(fast.detach().square().sum(dtype=torch.float64))
+        del delta
+    return distance_sq, fast_sq
+
+
+@torch.no_grad()
+def lookahead_sync_(fast_parameters, slow_parameters, alpha):
+    """Apply the canonical parameter-only Lookahead interpolation in place."""
+    torch._foreach_lerp_(slow_parameters, fast_parameters, alpha)
+    torch._foreach_copy_(fast_parameters, slow_parameters)
+
+
 # ---------------------------------------------------------------------------
 # Training & evaluation
 # ---------------------------------------------------------------------------
@@ -251,7 +275,9 @@ def main():
         f"warmup_fraction={WARMUP_FRACTION} "
         f"max_drop_path={MAX_DROP_PATH} eval_every={EVAL_EVERY} "
         f"cutmix_prob={CUTMIX_PROB} cutmix_alpha={CUTMIX_ALPHA} "
-        f"cutmix_end={CUTMIX_END} cutmix_seed={CUTMIX_SEED}"
+        f"cutmix_end={CUTMIX_END} cutmix_seed={CUTMIX_SEED} "
+        f"lookahead_k={LOOKAHEAD_K} lookahead_alpha={LOOKAHEAD_ALPHA} "
+        f"lookahead_audit_every_syncs={LOOKAHEAD_AUDIT_EVERY_SYNCS}"
     )
 
     optimizer = optim.SGD(
@@ -261,8 +287,40 @@ def main():
         weight_decay=WEIGHT_DECAY,
         nesterov=True,
     )
+    fast_parameters = [
+        parameter for parameter in model.parameters() if parameter.requires_grad
+    ]
+    cpu_rng_before_slow = torch.random.get_rng_state()
+    cuda_rng_before_slow = (
+        torch.cuda.get_rng_state(device) if device.type == "cuda" else None
+    )
+    slow_parameters = [parameter.detach().clone() for parameter in fast_parameters]
+    fast_restore = [torch.empty_like(parameter) for parameter in fast_parameters]
+    assert torch.equal(cpu_rng_before_slow, torch.random.get_rng_state())
+    if cuda_rng_before_slow is not None:
+        assert torch.equal(cuda_rng_before_slow, torch.cuda.get_rng_state(device))
+    assert len(fast_parameters) == len(slow_parameters) == 44
+    assert sum(parameter.numel() for parameter in slow_parameters) == num_params
+    optimizer_parameter_ids = {
+        id(parameter)
+        for group in optimizer.param_groups
+        for parameter in group["params"]
+    }
+    assert optimizer_parameter_ids == {id(parameter) for parameter in fast_parameters}
+    assert all(
+        slow.shape == fast.shape
+        and slow.dtype == fast.dtype == torch.float32
+        and slow.device == fast.device
+        and not slow.requires_grad
+        and id(slow) not in optimizer_parameter_ids
+        for fast, slow in zip(fast_parameters, slow_parameters, strict=True)
+    )
     print(f"Time budget: {TIME_BUDGET_S}s")
     print(f"Batches per epoch: {len(train_loader)}")
+    print(
+        f"Lookahead slow state: tensors={len(slow_parameters)} "
+        f"elements={sum(parameter.numel() for parameter in slow_parameters)}"
+    )
     cutmix_cpu_generator = torch.Generator().manual_seed(CUTMIX_SEED)
     cutmix_cuda_generator = torch.Generator(device=device).manual_seed(CUTMIX_SEED)
 
@@ -280,6 +338,22 @@ def main():
     test_acc = float("nan")
     cutmix_eligible_batches = 0
     cutmix_applied_batches = 0
+    lookahead_syncs = 0
+    lookahead_first_sync = 0
+    lookahead_last_sync = 0
+    lookahead_early_cutmix_syncs = 0
+    lookahead_early_clean_syncs = 0
+    lookahead_late_clean_syncs = 0
+    lookahead_synchronized_evals = 0
+    lookahead_swapped_evals = 0
+    lookahead_restore_failures = 0
+    lookahead_audit_samples = 0
+    lookahead_nonfinite_audits = torch.zeros((), device=device, dtype=torch.int64)
+    lookahead_pre_norm_sum = torch.zeros((), device=device, dtype=torch.float64)
+    lookahead_pre_norm_max = torch.zeros((), device=device, dtype=torch.float64)
+    lookahead_displacement_sum = torch.zeros((), device=device, dtype=torch.float64)
+    evaluation_accuracies = []
+    momentum_buffer_ids = None
 
     while total_training_time < TIME_BUDGET_S:
         epoch += 1
@@ -332,6 +406,56 @@ def main():
             loss.backward()
             optimizer.step()
 
+            completed_step = step + 1
+            if completed_step % LOOKAHEAD_K == 0:
+                sync_index = lookahead_syncs + 1
+                assert completed_step == LOOKAHEAD_K * sync_index
+                if sync_index == 1:
+                    assert completed_step == LOOKAHEAD_K
+
+                should_audit = (
+                    sync_index == 1 or sync_index % LOOKAHEAD_AUDIT_EVERY_SYNCS == 0
+                )
+                if should_audit:
+                    distance_sq, fast_sq = lookahead_distance_stats(
+                        fast_parameters,
+                        slow_parameters,
+                    )
+                    normalized_distance = torch.sqrt(
+                        distance_sq / fast_sq.clamp_min(torch.finfo(torch.float64).tiny)
+                    )
+                    lookahead_pre_norm_sum.add_(normalized_distance)
+                    lookahead_pre_norm_max.copy_(
+                        torch.maximum(lookahead_pre_norm_max, normalized_distance)
+                    )
+                    lookahead_displacement_sum.add_(
+                        LOOKAHEAD_ALPHA * torch.sqrt(distance_sq)
+                    )
+                    lookahead_nonfinite_audits.add_(
+                        (~torch.isfinite(distance_sq)).to(torch.int64)
+                        + (~torch.isfinite(fast_sq)).to(torch.int64)
+                        + (~torch.isfinite(normalized_distance)).to(torch.int64)
+                    )
+                    lookahead_audit_samples += 1
+                    del distance_sq, fast_sq, normalized_distance
+
+                lookahead_sync_(
+                    fast_parameters,
+                    slow_parameters,
+                    LOOKAHEAD_ALPHA,
+                )
+                lookahead_syncs = sync_index
+                if lookahead_first_sync == 0:
+                    lookahead_first_sync = completed_step
+                lookahead_last_sync = completed_step
+                if progress < CUTMIX_END:
+                    if targets_b is None:
+                        lookahead_early_clean_syncs += 1
+                    else:
+                        lookahead_early_cutmix_syncs += 1
+                else:
+                    lookahead_late_clean_syncs += 1
+
             if device.type == "cuda":
                 torch.cuda.synchronize()
             dt = time.time() - t0
@@ -368,8 +492,81 @@ def main():
         should_evaluate = epoch % EVAL_EVERY == 0 or budget_exhausted
         if should_evaluate:
             eval_started = time.time()
-            test_loss, test_acc = evaluator.evaluate(model, device)
+            if step % LOOKAHEAD_K == 0:
+                assert lookahead_last_sync == step
+                assert all(
+                    torch.equal(fast, slow)
+                    for fast, slow in zip(
+                        fast_parameters,
+                        slow_parameters,
+                        strict=True,
+                    )
+                )
+                lookahead_synchronized_evals += 1
+                test_loss, test_acc = evaluator.evaluate(model, device)
+            else:
+                module_training_flags = [module.training for module in model.modules()]
+                cpu_rng_before_swap = torch.random.get_rng_state()
+                cuda_rng_before_swap = (
+                    torch.cuda.get_rng_state(device) if device.type == "cuda" else None
+                )
+                with torch.no_grad():
+                    torch._foreach_copy_(fast_restore, fast_parameters)
+                    torch._foreach_copy_(fast_parameters, slow_parameters)
+                assert torch.equal(cpu_rng_before_swap, torch.random.get_rng_state())
+                if cuda_rng_before_swap is not None:
+                    assert torch.equal(
+                        cuda_rng_before_swap,
+                        torch.cuda.get_rng_state(device),
+                    )
+                try:
+                    test_loss, test_acc = evaluator.evaluate(model, device)
+                finally:
+                    cpu_rng_before_restore = torch.random.get_rng_state()
+                    cuda_rng_before_restore = (
+                        torch.cuda.get_rng_state(device)
+                        if device.type == "cuda"
+                        else None
+                    )
+                    with torch.no_grad():
+                        torch._foreach_copy_(fast_parameters, fast_restore)
+                    for module, training in zip(
+                        model.modules(),
+                        module_training_flags,
+                        strict=True,
+                    ):
+                        module.training = training
+                    assert torch.equal(
+                        cpu_rng_before_restore,
+                        torch.random.get_rng_state(),
+                    )
+                    if cuda_rng_before_restore is not None:
+                        assert torch.equal(
+                            cuda_rng_before_restore,
+                            torch.cuda.get_rng_state(device),
+                        )
+                    restore_failures = sum(
+                        not torch.equal(fast, restore)
+                        for fast, restore in zip(
+                            fast_parameters,
+                            fast_restore,
+                            strict=True,
+                        )
+                    )
+                    lookahead_restore_failures += restore_failures
+                    assert restore_failures == 0
+                lookahead_swapped_evals += 1
             eval_seconds = time.time() - eval_started
+            evaluation_accuracies.append(test_acc)
+
+            current_momentum_buffer_ids = tuple(
+                id(optimizer.state[parameter]["momentum_buffer"])
+                for parameter in fast_parameters
+            )
+            if momentum_buffer_ids is None:
+                momentum_buffer_ids = current_momentum_buffer_ids
+            else:
+                assert momentum_buffer_ids == current_momentum_buffer_ids
 
             if test_acc > best_acc:
                 best_acc = test_acc
@@ -393,10 +590,89 @@ def main():
         torch.cuda.max_memory_allocated() / 1024 / 1024 if device.type == "cuda" else 0
     )
     cutmix_ratio = cutmix_applied_batches / max(cutmix_eligible_batches, 1)
+    expected_lookahead_syncs = step // LOOKAHEAD_K
+    assert lookahead_syncs == expected_lookahead_syncs
+    assert lookahead_syncs > 0
+    assert lookahead_first_sync == LOOKAHEAD_K
+    assert lookahead_last_sync == LOOKAHEAD_K * lookahead_syncs
+    assert (
+        lookahead_early_cutmix_syncs
+        + lookahead_early_clean_syncs
+        + lookahead_late_clean_syncs
+        == lookahead_syncs
+    )
+    assert lookahead_synchronized_evals + lookahead_swapped_evals == len(
+        evaluation_accuracies
+    )
+    assert len(evaluation_accuracies) == epoch
+    assert lookahead_restore_failures == 0
+
+    final_distance_sq, final_fast_sq = lookahead_distance_stats(
+        fast_parameters,
+        slow_parameters,
+    )
+    final_normalized_distance = torch.sqrt(
+        final_distance_sq / final_fast_sq.clamp_min(torch.finfo(torch.float64).tiny)
+    ).item()
+    audit_nonfinite = int(lookahead_nonfinite_audits.item())
+    audit_mean_distance = (
+        (lookahead_pre_norm_sum / lookahead_audit_samples).item()
+        if lookahead_audit_samples
+        else float("nan")
+    )
+    audit_max_distance = lookahead_pre_norm_max.item()
+    cumulative_displacement = lookahead_displacement_sum.item()
+    final_nonfinite_tensors = sum(
+        not bool(torch.isfinite(tensor).all().item())
+        for tensor in [*fast_parameters, *slow_parameters]
+    )
+    final_nonfinite_tensors += sum(
+        not bool(torch.isfinite(value).all().item())
+        for state in optimizer.state.values()
+        for value in state.values()
+        if torch.is_tensor(value)
+    )
+    assert audit_nonfinite == 0
+    assert final_nonfinite_tensors == 0
+    assert cumulative_displacement > 0.0
+
+    tail_accuracies = evaluation_accuracies[-16:]
+    tail_mean = sum(tail_accuracies) / len(tail_accuracies)
+    tail_min = min(tail_accuracies)
+    tail_max = max(tail_accuracies)
+    tail_premium = best_acc - tail_mean
 
     print(
         f"cutmix: applied={cutmix_applied_batches} "
         f"eligible={cutmix_eligible_batches} ratio={cutmix_ratio:.4f}"
+    )
+    print(
+        f"lookahead: syncs={lookahead_syncs} expected={expected_lookahead_syncs} "
+        f"first={lookahead_first_sync} last={lookahead_last_sync} "
+        f"steps_since_sync={step - lookahead_last_sync} "
+        f"early_cutmix={lookahead_early_cutmix_syncs} "
+        f"early_clean={lookahead_early_clean_syncs} "
+        f"late_clean={lookahead_late_clean_syncs}"
+    )
+    print(
+        f"lookahead_evals: synchronized={lookahead_synchronized_evals} "
+        f"swapped={lookahead_swapped_evals} "
+        f"restore_failures={lookahead_restore_failures}"
+    )
+    print(
+        f"lookahead_distance: audit_samples={lookahead_audit_samples} "
+        f"mean_pre_norm={audit_mean_distance:.8f} "
+        f"max_pre_norm={audit_max_distance:.8f} "
+        f"cumulative_displacement_l2={cumulative_displacement:.8f} "
+        f"final_norm={final_normalized_distance:.8f} "
+        f"audit_nonfinite={audit_nonfinite} "
+        f"final_nonfinite_tensors={final_nonfinite_tensors}"
+    )
+    print(
+        "lookahead_tail16: values="
+        + ",".join(f"{accuracy:.2f}" for accuracy in tail_accuracies)
+        + f" mean={tail_mean:.4f} min={tail_min:.2f} max={tail_max:.2f} "
+        f"final={tail_accuracies[-1]:.2f} best_premium={tail_premium:.4f}"
     )
     print("---")
     print(f"best_test_acc:    {best_acc:.2f}%")
