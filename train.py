@@ -41,6 +41,9 @@ EMA_TAIL_HALF_LIVES = 4.0
 EMA_HALF_LIFE_S = (
     (1.0 - EMA_START) * TIME_BUDGET_S / EMA_TAIL_HALF_LIVES
 )
+COSINE_SCALE = 40.0
+COSINE_TEMPERATURE = 1.0 / COSINE_SCALE
+COSINE_EPS = 1e-6
 evaluator = Eval()
 
 
@@ -130,6 +133,7 @@ class PreActWideResNet(nn.Module):
         self.bn = nn.BatchNorm2d(256)
         self.fc = nn.Linear(256, num_classes)
         self.apply(self._weights_init)
+        self.fc.bias.requires_grad_(False)
 
     @staticmethod
     def _weights_init(module):
@@ -146,8 +150,25 @@ class PreActWideResNet(nn.Module):
         for block in self.blocks:
             out = block(out, drop_scale)
         out = F.relu(self.bn(out))
-        out = F.adaptive_avg_pool2d(out, 1)
-        return self.fc(out.flatten(1))
+        features = F.adaptive_avg_pool2d(out, 1).flatten(1)
+        with torch.autocast(device_type=features.device.type, enabled=False):
+            normalized_features = F.normalize(
+                features.float(),
+                p=2,
+                dim=1,
+                eps=COSINE_EPS,
+            )
+            normalized_weights = F.normalize(
+                self.fc.weight.float(),
+                p=2,
+                dim=1,
+                eps=COSINE_EPS,
+            )
+            return COSINE_SCALE * F.linear(
+                normalized_features,
+                normalized_weights,
+                bias=None,
+            )
 
 
 def learning_rate(progress):
@@ -243,6 +264,59 @@ def cutmix_batch(
 
     adjusted_lam = 1.0 - area / (height * width)
     return inputs, targets, paired_targets, adjusted_lam, area
+
+
+@torch.no_grad()
+def classifier_geometry(weight, bias):
+    raw_weight = weight.detach().float()
+    row_norms = torch.linalg.vector_norm(raw_weight, dim=1)
+    normalized = F.normalize(raw_weight, p=2, dim=1, eps=COSINE_EPS)
+    pairwise = normalized @ normalized.T
+    off_diagonal = pairwise[~torch.eye(
+        pairwise.shape[0],
+        device=pairwise.device,
+        dtype=torch.bool,
+    )]
+    bias_max = bias.detach().abs().max() if bias is not None else raw_weight.new_tensor(0.0)
+    values = torch.stack(
+        [
+            row_norms.min(),
+            row_norms.mean(),
+            row_norms.max(),
+            off_diagonal.min(),
+            off_diagonal.mean(),
+            off_diagonal.max(),
+            bias_max,
+        ]
+    )
+    if not torch.isfinite(values).all():
+        raise RuntimeError("nonfinite cosine-classifier geometry")
+    if row_norms.min().item() <= COSINE_EPS:
+        raise RuntimeError("degenerate cosine-classifier row norm")
+    if bias_max.item() != 0.0:
+        raise RuntimeError("cosine-classifier bias is nonzero")
+    return {
+        "norm_min": row_norms.min().item(),
+        "norm_mean": row_norms.mean().item(),
+        "norm_max": row_norms.max().item(),
+        "cos_min": off_diagonal.min().item(),
+        "cos_mean": off_diagonal.mean().item(),
+        "cos_max": off_diagonal.max().item(),
+        "bias_max": bias_max.item(),
+        "normalized": normalized,
+    }
+
+
+def classifier_geometry_line(prefix, geometry):
+    return (
+        f"{prefix}: norm_min={geometry['norm_min']:.8f} "
+        f"norm_mean={geometry['norm_mean']:.8f} "
+        f"norm_max={geometry['norm_max']:.8f} "
+        f"cos_min={geometry['cos_min']:.8f} "
+        f"cos_mean={geometry['cos_mean']:.8f} "
+        f"cos_max={geometry['cos_max']:.8f} "
+        f"bias_max={geometry['bias_max']:.8f}"
+    )
 
 
 class ChargedTimeEMA:
@@ -658,6 +732,70 @@ class ChargedTimeEMA:
         ]
 
 
+@torch.no_grad()
+def classifier_audit_lines(
+    model,
+    model_ema,
+    optimizer,
+    sam_parameters,
+    initial_geometry,
+    num_params,
+    num_trainable_params,
+):
+    frozen_names = [
+        name for name, parameter in model.named_parameters() if not parameter.requires_grad
+    ]
+    if frozen_names != ["fc.bias"]:
+        raise RuntimeError(f"unexpected frozen parameters: {frozen_names}")
+    if num_params != 2748890 or num_trainable_params != 2748880:
+        raise RuntimeError(
+            f"unexpected classifier parameter counts: {num_params}/{num_trainable_params}"
+        )
+
+    bias = model.fc.bias
+    optimizer_ids = {
+        id(parameter)
+        for group in optimizer.param_groups
+        for parameter in group["params"]
+    }
+    sam_ids = {id(parameter) for parameter in sam_parameters}
+    if id(bias) not in optimizer_ids or id(bias) in sam_ids or bias.grad is not None:
+        raise RuntimeError("invalid frozen-bias optimizer/SAM ownership")
+
+    try:
+        weight_index = model_ema.parameter_names.index("fc.weight")
+        bias_index = model_ema.parameter_names.index("fc.bias")
+    except ValueError as error:
+        raise RuntimeError("EMA does not cover classifier state") from error
+    ema_weight = model_ema.ema_parameters[weight_index]
+    ema_bias = model_ema.ema_parameters[bias_index]
+
+    online_geometry = classifier_geometry(model.fc.weight, bias)
+    ema_geometry = classifier_geometry(ema_weight, ema_bias)
+    raw_distance = (model.fc.weight.detach().float() - ema_weight.float()).norm().item()
+    normalized_distance = (
+        online_geometry["normalized"] - ema_geometry["normalized"]
+    ).norm().item()
+    if not math.isfinite(raw_distance) or not math.isfinite(normalized_distance):
+        raise RuntimeError("nonfinite online/EMA classifier distance")
+
+    return [
+        classifier_geometry_line("classifier_initial", initial_geometry),
+        classifier_geometry_line("classifier_online", online_geometry),
+        classifier_geometry_line("classifier_ema", ema_geometry),
+        (
+            f"classifier_distance: raw_l2={raw_distance:.8f} "
+            f"normalized_l2={normalized_distance:.8f}"
+        ),
+        (
+            f"classifier_ownership: stored_params={num_params} "
+            f"trainable_params={num_trainable_params} frozen=fc.bias "
+            f"bias_in_optimizer=1 bias_in_sam=0 bias_grad_none=1 "
+            f"ema_weight_index={weight_index} ema_bias_index={bias_index}"
+        ),
+    ]
+
+
 # ---------------------------------------------------------------------------
 # Training & evaluation
 # ---------------------------------------------------------------------------
@@ -676,6 +814,12 @@ def main():
     print(f"Device: {device}")
     if abs(EMA_HALF_LIFE_S - 18.75) > 1e-12:
         raise RuntimeError(f"unexpected EMA half-life: {EMA_HALF_LIFE_S}")
+    if (
+        COSINE_SCALE != 40.0
+        or COSINE_TEMPERATURE != 0.025
+        or COSINE_EPS != 1e-6
+    ):
+        raise RuntimeError("unexpected cosine-classifier configuration")
 
     mean, std = (
         (0.4914, 0.4822, 0.4465),
@@ -704,6 +848,10 @@ def main():
 
     model = PreActWideResNet(NUM_CLASSES).to(device, memory_format=torch.channels_last)
     num_params = sum(parameter.numel() for parameter in model.parameters())
+    num_trainable_params = sum(
+        parameter.numel() for parameter in model.parameters() if parameter.requires_grad
+    )
+    initial_classifier_geometry = classifier_geometry(model.fc.weight, model.fc.bias)
     print(f"PreAct WRN-16-4 | params: {num_params:,}")
     print(
         "config: architecture=PreActWideResNet "
@@ -715,8 +863,13 @@ def main():
         f"sam_rho={SAM_RHO} sam_start={SAM_START} sam_period={SAM_PERIOD} "
         f"ema_start={EMA_START} ema_update_every={EMA_UPDATE_EVERY} "
         f"ema_tail_half_lives={EMA_TAIL_HALF_LIVES} "
-        f"ema_half_life_s={EMA_HALF_LIFE_S}"
+        f"ema_half_life_s={EMA_HALF_LIFE_S} "
+        f"classifier=cosine scale={COSINE_SCALE} "
+        f"temperature={COSINE_TEMPERATURE} cosine_eps={COSINE_EPS} "
+        f"stored_params={num_params} trainable_params={num_trainable_params} "
+        "frozen_bias=fc.bias"
     )
+    print(classifier_geometry_line("classifier_setup", initial_classifier_geometry))
 
     optimizer = optim.SGD(
         model.parameters(),
@@ -769,8 +922,10 @@ def main():
     sam_applied_batches = 0
     sam_first_step = None
     sam_first_progress = None
+    deferred_audit_errors = []
+    audit_abort_requested = False
 
-    while total_training_time < TIME_BUDGET_S:
+    while total_training_time < TIME_BUDGET_S and not audit_abort_requested:
         epoch += 1
         model.train()
 
@@ -930,8 +1085,41 @@ def main():
             print(
                 f"\n  eval ep {epoch:3d} | test_loss: {test_loss:.4f} | "
                 f"test_acc: {test_acc:.2f}% | best: {best_acc:.2f}% | "
-                f"source: {eval_source} | eval_s: {eval_seconds:.2f}"
+                f"source: {eval_source} | charged_s: {total_training_time:.3f} | "
+                f"progress: {min(total_training_time / TIME_BUDGET_S, 1.0):.6f} | "
+                f"eval_s: {eval_seconds:.2f}"
             )
+            try:
+                online_classifier_geometry = classifier_geometry(
+                    model.fc.weight,
+                    model.fc.bias,
+                )
+                print(
+                    classifier_geometry_line(
+                        f"classifier_epoch_online ep={epoch} eval_source={eval_source}",
+                        online_classifier_geometry,
+                    )
+                )
+                if eval_source == "ema":
+                    ema_weight_index = model_ema.parameter_names.index("fc.weight")
+                    ema_bias_index = model_ema.parameter_names.index("fc.bias")
+                    ema_classifier_geometry = classifier_geometry(
+                        model_ema.ema_parameters[ema_weight_index],
+                        model_ema.ema_parameters[ema_bias_index],
+                    )
+                    print(
+                        classifier_geometry_line(
+                            f"classifier_epoch_ema ep={epoch}",
+                            ema_classifier_geometry,
+                        )
+                    )
+            except Exception as error:
+                deferred_audit_errors.append(error)
+                audit_abort_requested = True
+                print(
+                    f"classifier_epoch_audit_failed: ep={epoch} "
+                    f"source={eval_source} {type(error).__name__}: {error}"
+                )
 
         if epoch == 1:
             gc.collect()
@@ -940,7 +1128,7 @@ def main():
     # Final summary
     # -----------------------------------------------------------------------
 
-    final_audit_error = None
+    final_audit_errors = list(deferred_audit_errors)
     try:
         if model_ema.live_evals + model_ema.ema_evals != epoch:
             raise RuntimeError("EMA evaluation count does not equal epoch count")
@@ -948,9 +1136,24 @@ def main():
             raise RuntimeError("EMA ordinary/SAM sample parity mismatch")
         ema_audit_lines = model_ema.audit_lines()
     except Exception as error:
-        final_audit_error = error
+        final_audit_errors.append(error)
         ema_audit_lines = [
             f"ema_audit_failed: {type(error).__name__}: {error}"
+        ]
+    try:
+        classifier_audit_output = classifier_audit_lines(
+            model,
+            model_ema,
+            optimizer,
+            sam_parameters,
+            initial_classifier_geometry,
+            num_params,
+            num_trainable_params,
+        )
+    except Exception as error:
+        final_audit_errors.append(error)
+        classifier_audit_output = [
+            f"classifier_audit_failed: {type(error).__name__}: {error}"
         ]
     t_end = time.time()
     startup_time = t_start_training - t_start
@@ -971,6 +1174,8 @@ def main():
     )
     for audit_line in ema_audit_lines:
         print(audit_line)
+    for audit_line in classifier_audit_output:
+        print(audit_line)
     print("---")
     print(f"best_test_acc:    {best_acc:.2f}%")
     print(f"final_test_acc:   {test_acc:.2f}%")
@@ -982,8 +1187,9 @@ def main():
     print(f"num_epochs:       {epoch}")
     print(f"num_steps:        {step}")
     print(f"num_params:       {num_params:,}")
-    if final_audit_error is not None:
-        raise RuntimeError("EMA final audit failed") from final_audit_error
+    print(f"num_trainable_params: {num_trainable_params:,}")
+    if final_audit_errors:
+        raise RuntimeError("final integrity audit failed") from final_audit_errors[0]
 
 
 if __name__ == "__main__":
