@@ -31,6 +31,8 @@ CUTMIX_PROB = 0.5
 CUTMIX_ALPHA = 1.0
 CUTMIX_END = 0.75
 CUTMIX_SEED = 42
+CUTOUT_SIZE = 16
+CUTOUT_SEED = 43
 SAM_RHO = 0.05
 SAM_START = 0.75
 SAM_PERIOD = 2
@@ -243,6 +245,128 @@ def cutmix_batch(
 
     adjusted_lam = 1.0 - area / (height * width)
     return inputs, targets, paired_targets, adjusted_lam, area
+
+
+class ComplementaryCutout:
+    def __init__(self, device, batch_size):
+        if CUTOUT_SIZE != 16:
+            raise RuntimeError(f"unexpected Cutout size: {CUTOUT_SIZE}")
+        self.device = device
+        self.batch_size = batch_size
+        self.generator = torch.Generator(device=device).manual_seed(CUTOUT_SEED)
+
+        radius = CUTOUT_SIZE // 2
+        masks = torch.ones((32 * 32, 1, 32, 32), dtype=torch.float32)
+        areas = torch.empty(32 * 32, dtype=torch.float32)
+        for center_y in range(32):
+            for center_x in range(32):
+                index = center_y * 32 + center_x
+                y1, y2 = max(center_y - radius, 0), min(center_y + radius, 32)
+                x1, x2 = max(center_x - radius, 0), min(center_x + radius, 32)
+                masks[index, :, y1:y2, x1:x2] = 0.0
+                areas[index] = (y2 - y1) * (x2 - x1)
+
+        flattened_masks = masks.flatten(1)
+        unique_masks = torch.unique(flattened_masks, dim=0).shape[0]
+        area_min = int(areas.min().item())
+        area_mean = areas.mean().item()
+        area_max = int(areas.max().item())
+        if unique_masks != 1024:
+            raise RuntimeError(f"Cutout mask bank is not unique: {unique_masks}")
+        if (area_min, area_max) != (64, 256) or area_mean != 196.0:
+            raise RuntimeError(
+                "invalid Cutout mask areas: "
+                f"min={area_min} mean={area_mean} max={area_max}"
+            )
+
+        self.mask_bank = masks.to(
+            device,
+            memory_format=torch.channels_last,
+        )
+        self.area_bank = areas.to(device)
+        self.centers = torch.empty((batch_size, 2), device=device, dtype=torch.int64)
+        self.indices = torch.empty(batch_size, device=device, dtype=torch.int64)
+        self.selected_masks = torch.empty(
+            (batch_size, 1, 32, 32),
+            device=device,
+            dtype=torch.float32,
+            memory_format=torch.channels_last,
+        )
+        self.selected_areas = torch.empty(
+            batch_size,
+            device=device,
+            dtype=torch.float32,
+        )
+        self.center_histogram = torch.zeros(1024, device=device, dtype=torch.int64)
+        self.center_ones = torch.ones(batch_size, device=device, dtype=torch.int64)
+        self.batch_masked_pixels = torch.zeros((), device=device, dtype=torch.float32)
+        self.masked_pixels = torch.zeros((), device=device, dtype=torch.float64)
+        self.calls = 0
+        self.images = 0
+        self.bank_unique = unique_masks
+        self.bank_area_min = area_min
+        self.bank_area_mean = area_mean
+        self.bank_area_max = area_max
+
+        if not self.mask_bank.is_contiguous(memory_format=torch.channels_last):
+            raise RuntimeError("Cutout mask bank is not channels-last")
+        if not self.selected_masks.is_contiguous(memory_format=torch.channels_last):
+            raise RuntimeError("Cutout selected-mask buffer is not channels-last")
+
+    @torch.no_grad()
+    def apply_(self, inputs):
+        if inputs.shape != (self.batch_size, 3, 32, 32):
+            raise RuntimeError(f"unexpected Cutout input shape: {tuple(inputs.shape)}")
+        if inputs.dtype != torch.float32:
+            raise RuntimeError(f"unexpected Cutout input dtype: {inputs.dtype}")
+        if not inputs.is_contiguous(memory_format=torch.channels_last):
+            raise RuntimeError("Cutout input is not channels-last")
+
+        self.centers.random_(0, 32, generator=self.generator)
+        torch.mul(self.centers[:, 0], 32, out=self.indices)
+        self.indices.add_(self.centers[:, 1])
+        torch.index_select(self.mask_bank, 0, self.indices, out=self.selected_masks)
+        torch.index_select(self.area_bank, 0, self.indices, out=self.selected_areas)
+        inputs.mul_(self.selected_masks)
+        self.center_histogram.scatter_add_(0, self.indices, self.center_ones)
+        torch.sum(self.selected_areas, dim=(0,), out=self.batch_masked_pixels)
+        self.masked_pixels.add_(self.batch_masked_pixels)
+        self.calls += 1
+        self.images += self.batch_size
+        return inputs
+
+    def audit_line(self, eligible_batches, cutmix_batches, total_steps):
+        expected_calls = eligible_batches - cutmix_batches
+        masked_pixels = self.masked_pixels.item()
+        expected_images = self.calls * self.batch_size
+        mean_area = masked_pixels / max(self.images, 1)
+        masked_fraction = masked_pixels / max(self.images * 32 * 32, 1)
+        center_support = torch.count_nonzero(self.center_histogram).item()
+        if self.calls != expected_calls:
+            raise RuntimeError(
+                f"Cutout complement mismatch: calls={self.calls} expected={expected_calls}"
+            )
+        if self.images != expected_images:
+            raise RuntimeError(
+                f"Cutout image mismatch: images={self.images} expected={expected_images}"
+            )
+        if self.calls <= 0 or not 195.8 <= mean_area <= 196.2:
+            raise RuntimeError(
+                f"invalid realized Cutout dose: calls={self.calls} mean_area={mean_area}"
+            )
+        if center_support != 1024:
+            raise RuntimeError(f"incomplete Cutout center support: {center_support}")
+        return (
+            f"cutout: calls={self.calls} images={self.images} "
+            f"masked_pixels={masked_pixels:.0f} masked_fraction={masked_fraction:.8f} "
+            f"mean_area={mean_area:.6f} early_share={self.calls / max(eligible_batches, 1):.6f} "
+            f"all_step_share={self.calls / max(total_steps, 1):.6f} "
+            f"complement_ok={int(self.calls + cutmix_batches == eligible_batches)} "
+            f"seed={CUTOUT_SEED} center_support={center_support} "
+            f"bank_unique={self.bank_unique} bank_area_min={self.bank_area_min} "
+            f"bank_area_mean={self.bank_area_mean:.6f} "
+            f"bank_area_max={self.bank_area_max}"
+        )
 
 
 class ChargedTimeEMA:
@@ -681,6 +805,8 @@ def main():
         (0.4914, 0.4822, 0.4465),
         (1, 1, 1),
     )
+    if tuple(std) != (1, 1, 1):
+        raise RuntimeError(f"Cutout mean-fill assumption violated: std={std}")
     train_tf = transforms.Compose(
         [
             transforms.RandomCrop(32, padding=4),
@@ -712,6 +838,7 @@ def main():
         f"max_drop_path={MAX_DROP_PATH} eval_every={EVAL_EVERY} "
         f"cutmix_prob={CUTMIX_PROB} cutmix_alpha={CUTMIX_ALPHA} "
         f"cutmix_end={CUTMIX_END} cutmix_seed={CUTMIX_SEED} "
+        f"cutout_size={CUTOUT_SIZE} cutout_seed={CUTOUT_SEED} "
         f"sam_rho={SAM_RHO} sam_start={SAM_START} sam_period={SAM_PERIOD} "
         f"ema_start={EMA_START} ema_update_every={EMA_UPDATE_EVERY} "
         f"ema_tail_half_lives={EMA_TAIL_HALF_LIVES} "
@@ -729,6 +856,7 @@ def main():
     print(f"Batches per epoch: {len(train_loader)}")
     cutmix_cpu_generator = torch.Generator().manual_seed(CUTMIX_SEED)
     cutmix_cuda_generator = torch.Generator(device=device).manual_seed(CUTMIX_SEED)
+    complementary_cutout = ComplementaryCutout(device, BATCH_SIZE)
     sam_parameters = [parameter for parameter in model.parameters() if parameter.requires_grad]
     sam_snapshots = [
         torch.empty_like(parameter, memory_format=torch.preserve_format)
@@ -810,6 +938,8 @@ def main():
                         cutmix_cuda_generator,
                     )
                     cutmix_applied_batches += 1
+                else:
+                    complementary_cutout.apply_(inputs)
 
             if apply_sam and targets_b is not None:
                 raise RuntimeError("SAM and CutMix must not overlap")
@@ -930,7 +1060,9 @@ def main():
             print(
                 f"\n  eval ep {epoch:3d} | test_loss: {test_loss:.4f} | "
                 f"test_acc: {test_acc:.2f}% | best: {best_acc:.2f}% | "
-                f"source: {eval_source} | eval_s: {eval_seconds:.2f}"
+                f"source: {eval_source} | charged_s: {total_training_time:.3f} | "
+                f"progress: {min(total_training_time / TIME_BUDGET_S, 1.0):.6f} | "
+                f"eval_s: {eval_seconds:.2f}"
             )
 
         if epoch == 1:
@@ -940,7 +1072,7 @@ def main():
     # Final summary
     # -----------------------------------------------------------------------
 
-    final_audit_error = None
+    final_audit_errors = []
     try:
         if model_ema.live_evals + model_ema.ema_evals != epoch:
             raise RuntimeError("EMA evaluation count does not equal epoch count")
@@ -948,10 +1080,19 @@ def main():
             raise RuntimeError("EMA ordinary/SAM sample parity mismatch")
         ema_audit_lines = model_ema.audit_lines()
     except Exception as error:
-        final_audit_error = error
+        final_audit_errors.append(error)
         ema_audit_lines = [
             f"ema_audit_failed: {type(error).__name__}: {error}"
         ]
+    try:
+        cutout_audit_line = complementary_cutout.audit_line(
+            cutmix_eligible_batches,
+            cutmix_applied_batches,
+            step,
+        )
+    except Exception as error:
+        final_audit_errors.append(error)
+        cutout_audit_line = f"cutout_audit_failed: {type(error).__name__}: {error}"
     t_end = time.time()
     startup_time = t_start_training - t_start
     peak_vram_mb = (
@@ -964,6 +1105,7 @@ def main():
         f"cutmix: applied={cutmix_applied_batches} "
         f"eligible={cutmix_eligible_batches} ratio={cutmix_ratio:.4f}"
     )
+    print(cutout_audit_line)
     print(
         f"sam: applied={sam_applied_batches} eligible={sam_eligible_batches} "
         f"ratio={sam_ratio:.4f} first_step={sam_first_step or -1} "
@@ -982,8 +1124,8 @@ def main():
     print(f"num_epochs:       {epoch}")
     print(f"num_steps:        {step}")
     print(f"num_params:       {num_params:,}")
-    if final_audit_error is not None:
-        raise RuntimeError("EMA final audit failed") from final_audit_error
+    if final_audit_errors:
+        raise RuntimeError("final integrity audit failed") from final_audit_errors[0]
 
 
 if __name__ == "__main__":
