@@ -99,10 +99,10 @@ class PreActWideResNet(nn.Module):
 
         block_specs = [
             (16, 64, 1),
-            (64, 64, 1),
             (64, 128, 2),
             (128, 128, 1),
             (128, 256, 2),
+            (256, 256, 1),
             (256, 256, 1),
         ]
         num_blocks = len(block_specs)
@@ -244,10 +244,10 @@ def main():
 
     model = PreActWideResNet(NUM_CLASSES).to(device, memory_format=torch.channels_last)
     num_params = sum(parameter.numel() for parameter in model.parameters())
-    print(f"PreAct WRN-16-4 | params: {num_params:,}")
+    print(f"PreAct WRN-16-4 (1-2-3) | params: {num_params:,}")
     print(
         "config: architecture=PreActWideResNet "
-        f"params={num_params} peak_lr={PEAK_LR} "
+        f"stage_blocks=1-2-3 params={num_params} peak_lr={PEAK_LR} "
         f"warmup_fraction={WARMUP_FRACTION} "
         f"max_drop_path={MAX_DROP_PATH} eval_every={EVAL_EVERY} "
         f"cutmix_prob={CUTMIX_PROB} cutmix_alpha={CUTMIX_ALPHA} "
