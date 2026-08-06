@@ -112,8 +112,8 @@ class PreActWideResNet(nn.Module):
             (64, 64, 1),
             (64, 128, 2),
             (128, 128, 1),
-            (128, 256, 2),
-            (256, 256, 1),
+            (128, 320, 2),
+            (320, 320, 1),
         ]
         num_blocks = len(block_specs)
         self.blocks = nn.ModuleList(
@@ -127,8 +127,8 @@ class PreActWideResNet(nn.Module):
                 for index, (in_channels, out_channels, stride) in enumerate(block_specs)
             ]
         )
-        self.bn = nn.BatchNorm2d(256)
-        self.fc = nn.Linear(256, num_classes)
+        self.bn = nn.BatchNorm2d(320)
+        self.fc = nn.Linear(320, num_classes)
         self.apply(self._weights_init)
 
     @staticmethod
@@ -704,10 +704,10 @@ def main():
 
     model = PreActWideResNet(NUM_CLASSES).to(device, memory_format=torch.channels_last)
     num_params = sum(parameter.numel() for parameter in model.parameters())
-    print(f"PreAct WRN-16-4 | params: {num_params:,}")
+    print(f"PreAct WRN-16-[4,4,5] | params: {num_params:,}")
     print(
         "config: architecture=PreActWideResNet "
-        f"params={num_params} peak_lr={PEAK_LR} "
+        f"stage_widths=64,128,320 params={num_params} peak_lr={PEAK_LR} "
         f"warmup_fraction={WARMUP_FRACTION} "
         f"max_drop_path={MAX_DROP_PATH} eval_every={EVAL_EVERY} "
         f"cutmix_prob={CUTMIX_PROB} cutmix_alpha={CUTMIX_ALPHA} "
@@ -930,7 +930,9 @@ def main():
             print(
                 f"\n  eval ep {epoch:3d} | test_loss: {test_loss:.4f} | "
                 f"test_acc: {test_acc:.2f}% | best: {best_acc:.2f}% | "
-                f"source: {eval_source} | eval_s: {eval_seconds:.2f}"
+                f"source: {eval_source} | eval_s: {eval_seconds:.2f} | "
+                f"charged_s: {total_training_time:.3f} | "
+                f"progress: {min(total_training_time / TIME_BUDGET_S, 1.0):.6f}"
             )
 
         if epoch == 1:
@@ -982,6 +984,7 @@ def main():
     print(f"num_epochs:       {epoch}")
     print(f"num_steps:        {step}")
     print(f"num_params:       {num_params:,}")
+    print(f"final_train_loss_ema: {debiased:.6f}")
     if final_audit_error is not None:
         raise RuntimeError("EMA final audit failed") from final_audit_error
 
