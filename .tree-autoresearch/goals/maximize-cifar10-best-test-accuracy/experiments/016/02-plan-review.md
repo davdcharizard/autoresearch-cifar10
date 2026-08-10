@@ -1,0 +1,46 @@
+# Review: EXP-016 Plan (106-State Trailing Uniform Clean-Tail SWA)
+
+## 1. The preregistered estimator is not what most evaluations will actually measure — §Code Changes/sampling + §Verification step 6
+
+The plan states "samples 1-106 are a cumulative uniform mean and all later samples are a strict 106-state trailing boxcar," and the window fills at sample 106 of the ~160 expected tail samples — i.e. ~66% of the way through the SWA-active region. Since evaluation is once per epoch and the plan itself expects ≥16 averaged-source evaluations in the tail, roughly the first ~10 of those 16 will be evaluated against a **growing cumulative mean over the whole tail so far**, which is precisely the "full-quarter cumulative kernel" the idea review rejected as too stale (§Review: "conditioned on replacing the full-quarter cumulative kernel with a preregistered narrower boxcar"). `best_test_acc` is a max over all of them, so the headline number can easily be produced by the rejected estimator while being reported as evidence about the 106-boxcar. The plan's only fill-related check is "final window size 106," which says nothing about the window size at the best epoch.
+
+Concretely missing: an audit field recording `update_count`/window size and source (live / cumulative / full boxcar) **at the best-accuracy epoch**, and a preregistered decision on whether SWA-source evaluation should be suppressed until the window is full. Note the tension either way — gating evaluation on fill leaves only ~6 boxcar evaluations to produce the max, and starting sampling ~50 s earlier to fill by 0.75 progress would push support back into the CutMix/higher-LR region the design explicitly excludes. This needs to be resolved before launch, not after seeing accuracy.
+
+## 2. Latency and dose gates are loose enough to confound the result with reduced training dose — §Abort Criteria, §Configuration/Verification step 5
+
+The gates permit "median candidate/parent charged latency ... 1.02", "any round ratio ... 1.05", and realized `num_steps >= 25200` against parent EXP-004's 25,560 steps. That is up to ~1.4% fewer optimizer steps. Under a fixed cosine schedule a 1.4% dose reduction is a plausible source of a ±0.1 pp swing — the same magnitude as the 95.50 improvement threshold — so a pass at 95.51 or a fail at 95.45 would be uninterpretable. EXP-011's comparable full-state EMA at the same cadence was "negligible cost", so there is no reason to budget 2%. Tighten the median-ratio gate (≈1.005) and the step floor (≈25,450), and require the realized step count to be reported alongside the metric.
+
+Contributing to this: §Code Changes/sampling materializes the averaged state ("set the averaged floating state to `sum / min(update_count, 106)`") on **every** sample — ~160 full-state divisions over 2.75M parameters plus per-tensor kernel launches, when only ~16 of those materializations are ever consumed by an evaluation. If this is moved to lazy materialization, the cost must still be charged to `training_seconds`; performing it inside the uncharged evaluation window would convert redundant work into free compute and would be budget gaming.
+
+## 3. `>= 4096 MiB` peak allocation is a hard leaf-abort that contradicts the goal — §Abort Criteria, §Execution Environment
+
+The goal states "VRAM is a soft consideration rather than a pass/fail constraint; increases are acceptable when justified." The plan converts it into a preflight abort that ends the leaf on a 97,871 MiB card. The gate is also stated as an absolute number with no reference to the parent's measured `peak_vram_mb`, so it is impossible to tell whether 4,096 MiB leaves headroom for the ~1.1 GiB ring or is already near the parent's baseline. Either state the parent peak and re-derive the threshold as parent + ring + margin, or demote this to a warning.
+
+## 4. Preflight latency rounds may not weight the SWA update at its true frequency — §Verification step 4, Milestone 2
+
+Sampling fires on 1-in-31 steps and only in the final quarter, i.e. roughly 1 in 124 steps overall. The plan describes "five alternating-order paired ... rounds each reproduce the parent-weighted early/clean/SAM mix" and, *separately*, "production-order state updates cover both cadence parities and at least the first eviction." As written, it is unclear whether the timed rounds include SWA updates at the correct cadence. If the correctness sequence is what exercises state updates and the timed rounds don't, the ≤1.02 gate measures nothing; if the timed rounds sample every step, the gate is ~31× over-strict and will abort spuriously. Specify that the timed rounds contain SWA updates at exactly the production frequency and phase.
+
+## 5. Two of the runtime audits are mathematically vacuous — §Code Changes/audits, §Verification step 5
+
+"positive running variances" / "positive averaged BN variances": a uniform average of positive `running_var` tensors is positive by construction. This check can never fail and provides false assurance about the real risk the brainstorm itself flagged — that averaged BN statistics are mismatched to the averaged weights (the variance of the averaged model ≠ the average of the variances), with BN recalibration correctly ruled out. Same for "nonzero trajectory distance," which is satisfied by any non-degenerate training. Either replace with something discriminating (e.g. ratio of averaged `running_var` to the newest state's `running_var`, with a preregistered sane range, and averaged-vs-live BN distance relative to the consecutive-sample distance) or stop counting them as safety gates.
+
+## 6. Allocation timing of the ~1.1 GiB ring is unspecified — §Code Changes/ring representation, §Execution Environment
+
+The plan never says whether the 106-slot ring is allocated at startup or lazily at the 0.75 activation boundary. This matters twice: (a) a 1.1 GiB `cudaMalloc` at progress 0.75 can stall the allocator mid-training and is charged unpredictably against the budget, and it lands exactly at the boundary where the SAM phase is also changing the step cost; (b) allocating at startup puts the cost in the explicitly-uncharged `startup_seconds`. Pick one, state it, and make the preflight measure the same choice.
+
+## 7. Scope check will not catch untracked files, and will self-trip later — §Verification step 1, Milestone 1
+
+`git diff --name-only 1a8d0de` reports tracked modifications only. A new untracked helper module in the repo root imported by `train.py` would satisfy this check while violating the "only `train.py`" constraint. Use `git status --porcelain` alongside it. Separately, this same check is listed as a hard requirement ("reports only `train.py`") but Milestone 3 writes `03-execute.md` and Milestone 3/5 create `run.log`; re-running the check after those steps will fail. Bind the check to a pre-launch point in time or exclude the experiment-record paths explicitly.
+
+## 8. Interaction with any compilation/graph capture in the parent is unaddressed — §Code Changes/sampling and /evaluation
+
+The goal text mentions compilation being excluded from the budget, and the plan's own runtime estimate carries a `startup_seconds` line, but the plan never states whether `train.py` uses `torch.compile` (and if so, in what mode). Inserting per-31-step full-state `copy_` operations and per-epoch in-place parameter swaps is safe against plain `torch.compile`, but not against `mode="reduce-overhead"` / CUDA-graph replay, where parameter storages are captured. The preflight has no gate for this. Add an explicit check that the sampling point and the evaluation swap sit outside any captured/compiled region, and that swapping does not trigger recompilation (which would silently inflate charged time and break the 1.02 ratio gate for the wrong reason).
+
+## 9. Preflight retry rule has an unhandled failure mode — §Verification step 4
+
+"Any numeric failure ends the experiment without a metric launch; retry is allowed only for an exception or malformed harness before any numeric gate output." A `timeout 240s` kill is neither an exception nor a numeric output. Given the harness must materialize the parent module, load real CIFAR batches, and run five paired rounds plus separate correctness sequences within 240 s, a timeout is a realistic outcome. Classify it explicitly (recommended: treat as harness failure, retry once with a larger timeout, and record it) so it cannot become an undocumented retry loop.
+
+## 10. Minor: parent metric is hardcoded; running-sum drift is avoidable — §Verification step 6, §Code Changes/ring representation
+
+- Step 6 hardcodes "Parent EXP-004 is 95.40". The goal's procedure specifies reading the parent metric with `tree.sh show <base>`; do that rather than relying on a transcribed constant for the pass/fail boundary.
+- The FP32 running sum with per-eviction subtraction accumulates rounding error that no runtime audit can detect (the smoke test in step 3 checks it only at fixed synthetic points). Since the ring already holds all 106 states, the average can be computed by summing the ring slice directly at materialization time, removing the cancellation path entirely; if the incremental form is kept for cost reasons, add a periodic exact recomputation and assert agreement.

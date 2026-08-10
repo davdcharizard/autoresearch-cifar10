@@ -1,0 +1,7 @@
+trial_idx	cutmix_prob	max_drop_path	objective	status	final_test_acc	final_test_loss	training_seconds	total_seconds	startup_seconds	peak_vram_mb	num_epochs	num_steps	num_params	return_code	error
+0	0.35	0.04	95.2	ok	95.11	0.2083	300.0	466.1	1.1	1178.9	145	28115	2748890	0	
+1	0.35	0.08	94.86	ok	94.76	0.2177	300.0	470.5	1.0	1178.9	145	28125	2748890	0	
+2	0.5	0.04	95.28	ok	95.23	0.1957	300.0	460.6	1.1	1178.9	145	28160	2748890	0	
+3	0.5	0.08	95.23	parent	95.19	0.2044	300.0	467.1		1178.9	144	27950	2748890	0	
+4	0.65	0.04	95.42	ok	95.34	0.1991	300.0	465.0	1.1	1178.9	145	28162	2748890	0	
+5	0.65	0.08	95.48	ok	95.37	0.1944	300.0	468.4	1.0	1178.9	145	28229	2748890	0	

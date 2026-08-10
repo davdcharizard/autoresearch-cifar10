@@ -1,0 +1,27 @@
+# metric: best_test_acc | unit: % | direction: higher | best: 95.61 | best_exp: 011 | best_commit: d68f73a
+# goal: goals/maximize-cifar10-best-test-accuracy/01-definition.md
+# branch: br-000 | forked_from: - | summary: Time-aware WRN with front-loaded CutMix, period-two clean-tail SAM, and horizon-derived full-state EMA reaches 95.61%, retaining 25,798 steps and a 95.49% late EMA plateau.
+exp_id	parent_id	branch	commit	metric	verdict	description	key_learning
+BASE	-	br-000	7646ab4	91.51	improvement	Initial baseline	Baseline establishment
+001	BASE	br-000	1feed19	94.62	improvement	Time-aware PreAct WRN-16-4	A time-scheduled pre-activation WRN-16-4 converts H20 headroom into a 3.11-point CIFAR-10 gain within the fixed budget.
+002	001	br-000	a36dc09	95.23	improvement	Front-loaded probabilistic CutMix	Front-loaded probabilistic CutMix adds 0.61 points to the time-aware WRN while preserving throughput and clean late convergence.
+003	002	br-000	a36dc09	95.28	no-improvement	CutMix/drop-path regularization sweep	Higher CutMix looked favorable in selected search runs but failed confirmation, exposing variance rather than a reliable regularization gain.
+004	002	br-000	1a8d0de	95.40	improvement	Clean-finish periodic SAM	Period-two SAM in the clean final quarter adds 0.17 points while preserving 25,560 optimizer steps and exact parent RNG semantics.
+005	004	br-000	49f6f64	95.28	no-improvement	Clean-gated last-mini-batch self-distillation	Half-overlap DLB preserved step throughput and lowered test loss, but halved new-image exposure and reduced accuracy by 0.12 points.
+006	004	br-000	56c3ce3	95.41	no-improvement	Shared-budget CutMix and manifold mixup	Replacing one quarter of validated CutMix exposure with low-dose manifold mixup leaves accuracy within noise and worsens final test loss.
+007	004	br-000	428cefd	95.34	no-improvement	Literature-scale late ASAM	Published-default late ASAM preserved throughput but missed by 0.06 points; its first perturbation had 9x the parent Euclidean norm.
+008	004	br-000	9625222	NaN	crash	Paired early RandAugment preflight reject	Exact paired RandAugment was reproducible, but its best loader rate stayed below parent worst; accuracy was never tested.
+009	002	br-000	762b609	NaN	crash	Late-stage identity SE preflight reject	Four active FP32 SE gates preserved parent semantics but added 20.7% median step latency; accuracy was never tested.
+010	002	br-000	160b62f	95.04	no-improvement	Compute-neutral back-loaded 1-2-3 stage depth	Moving one equal-MAC block from stage 1 to stage 3 raised steps 9.3% but produced no detectable accuracy improvement.
+011	004	br-000	d68f73a	95.61	improvement	Charged-time clean-tail EMA	A full-state clean-tail EMA reached 95.61% with negligible charged overhead, but its 95.49% tail plateau limits causal certainty.
+012	011	br-000	3b5b48d	95.52	no-improvement	CutMix-complementary GPU Cutout	Full-probability complementary Cutout reached 95.52 with a lower 95.42 tail, but step under-dose prevents a clean full-dose causal conclusion.
+013	011	br-000	d15e138	95.11	no-improvement	Fixed-scale-40 cosine-normalized classifier	Fixed-scale-40 cosine normalization preserved full training dose but lowered best accuracy by 0.50 points and the EMA tail by 0.42 points.
+014	011	br-000	527fd37	NaN	crash	Stage-3 width-320 expansion rejected by latency preflight	Widening the final stage to 320 costs about 16% weighted step latency on H20, tripping the 1.15 gate before any metric run.
+015	011	br-000	9e1be61	95.34	no-improvement	Confidence-attenuating soft-target Poly-1	Fixed epsilon -0.25 Poly-1 preserved full dose but lowered best accuracy 0.27 points and EMA tail mean 0.26 points.
+016	004	br-000	e080f7f	NaN	crash	106-state trailing uniform clean-tail SWA; preflight dispersion failure	The boxcar preserved exact online state and 0.9995x median latency, but a 0.005307 ratio-dispersion miss blocked metric evaluation.
+017	002	br-000	4c22c9c	NaN	crash	Full-run regularized-direction gradient centralization; preflight harness exhausted repair allowance before timing/metric.	Retaining device scalars invalidated allocation stability after the sole preflight repair, leaving reference-ordered GC untested.
+018	002	br-000	d88242f	94.82	no-improvement	Canonical parameter-only Lookahead on EXP002	Canonical k=5, alpha=0.5 Lookahead over-damped EXP002, lowering a stable tail despite higher step exposure and exact low-overhead execution.
+019	002	br-000	a103071	95.07	no-improvement	Full-run official-order Gradient Centralization	Full-run official-order GC removed 22% of eligible gradient energy but lowered EXP002 by 0.16 points despite unchanged exposure.
+020	002	br-000	cf33559	95.24	no-improvement	Convolution-only official-order gradient centralization	Excluding classifier projection restored full-GC's loss but improved EXP002 only 0.01 points; convolution GC remained strongly active and accuracy-neutral.
+021	004	br-000	763b98e	95.11	no-improvement	Stage-2 training-only companion classifier	Full-dose stage-2 companion supervision preserved exposure but lowered EXP004 by 0.29 points, with a volatile lower tail and U-shaped feature norms.
+022	011	br-000	beea2ef	NaN	crash	Fixed 288-channel final-stage taper	Width 288 cost 1.161x on H20, matching width 320 and invalidating MAC-linear latency interpolation before accuracy.
