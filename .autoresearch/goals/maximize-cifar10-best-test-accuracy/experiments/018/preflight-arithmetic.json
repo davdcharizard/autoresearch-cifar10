@@ -1,0 +1,21 @@
+{
+  "status": "pass",
+  "reference_snapshots": 7,
+  "max_reference_error": 1.1920928955078125e-07,
+  "median_consecutive_rms": 0.2828868255019188,
+  "first_last_rms": 5.311270236968994,
+  "snapshot_seconds": [
+    0.030440568923950195,
+    0.06110215187072754,
+    0.00031757354736328125,
+    0.0002353191375732422,
+    0.0001952648162841797,
+    0.00021195411682128906,
+    0.00022339820861816406
+  ],
+  "real_snapshot_seconds": 0.0005035400390625,
+  "online_state_equal": true,
+  "optimizer_state_equal": true,
+  "rng_equal": true,
+  "reorder_rejected": true
+}

@@ -1,0 +1,12 @@
+{
+  "status": "pass",
+  "parameters": 1084586,
+  "shared_state_equal": true,
+  "rng_equal": true,
+  "transition_shortcuts": 2,
+  "identity_shortcuts": 7,
+  "new_gradient_tensors_per_target": [
+    6,
+    6
+  ]
+}

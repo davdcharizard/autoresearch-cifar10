@@ -1,0 +1,10 @@
+{
+  "status": "pass",
+  "cutmix_rate": 0.5,
+  "wait_median_ms": 0.16788765788078308,
+  "wait_p95_ms": 0.2054646611213684,
+  "step_median_ms": 14.028344303369522,
+  "strong_workers_stopped": 8,
+  "weak_workers_stopped": 8,
+  "weak_target_ndim": 1
+}

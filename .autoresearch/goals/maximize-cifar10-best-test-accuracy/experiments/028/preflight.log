@@ -1,0 +1,7 @@
+Traceback (most recent call last):
+  File "/SPXvePFS/users/david/autoresearch-benchmarks/autoresearch-cifar10/runs/v3.0.5-gpt-5-6-sol-adversarial/.autoresearch/goals/maximize-cifar10-best-test-accuracy/experiments/028/preflight_pnm.py", line 582, in <module>
+    main()
+    ~~~~^^
+  File "/SPXvePFS/users/david/autoresearch-benchmarks/autoresearch-cifar10/runs/v3.0.5-gpt-5-6-sol-adversarial/.autoresearch/goals/maximize-cifar10-best-test-accuracy/experiments/028/preflight_pnm.py", line 572, in main
+    raise RuntimeError(f"preflight gates failed: {failures}")
+RuntimeError: preflight gates failed: ['constant-direction relative error', 'candidate-only class concentration', 'paired update spike']

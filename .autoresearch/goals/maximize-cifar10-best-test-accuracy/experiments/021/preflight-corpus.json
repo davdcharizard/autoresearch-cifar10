@@ -1,0 +1,27 @@
+{
+  "batches": 200,
+  "bytes": 315301733,
+  "gates": {
+    "batch_count": true,
+    "finite": true,
+    "hard_floor": true,
+    "mixed_floor": true,
+    "target_shapes": true,
+    "workers_stopped": true
+  },
+  "hard_batches": 100,
+  "mixed_batches": 100,
+  "sha256": "9b2801ac6d2d07f9bc5a5204e370db815f1b8bfaca8a1b9848a97091703388ea",
+  "status": "pass",
+  "worker_pids": [
+    2404650,
+    2404651,
+    2404652,
+    2404663,
+    2404664,
+    2404665,
+    2404666,
+    2404673
+  ],
+  "workers_alive_after_shutdown": []
+}

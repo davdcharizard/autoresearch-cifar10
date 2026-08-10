@@ -1,0 +1,14 @@
+{
+  "status": "pass",
+  "refresh_batches": 780,
+  "bn_batches": 780,
+  "loader_batches": 390,
+  "iterator_recreated": true,
+  "install_seconds": 0.010751485824584961,
+  "refresh_seconds": 3.0012917518615723,
+  "parameters_equal": true,
+  "optimizer_state_equal": true,
+  "gradients_equal": true,
+  "momenta_restored": true,
+  "stopped_workers": 8
+}

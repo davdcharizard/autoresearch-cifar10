@@ -1,0 +1,7 @@
+Traceback (most recent call last):
+  File "/SPXvePFS/users/david/autoresearch-benchmarks/autoresearch-cifar10/runs/v3.0.5-gpt-5-6-sol-adversarial/.autoresearch/goals/maximize-cifar10-best-test-accuracy/experiments/036/preflight_reflect.py", line 246, in <module>
+    trajectory(args.trajectory) if args.trajectory else parent()
+                                                        ~~~~~~^^
+  File "/SPXvePFS/users/david/autoresearch-benchmarks/autoresearch-cifar10/runs/v3.0.5-gpt-5-6-sol-adversarial/.autoresearch/goals/maximize-cifar10-best-test-accuracy/experiments/036/preflight_reflect.py", line 238, in parent
+    raise RuntimeError("; ".join(report["failures"]))
+RuntimeError: gradient ratio step 11; logit ratio step 17; gradient ratio step 17; logit ratio step 18; logit ratio step 19; logit ratio step 20; logit ratio step 21; logit ratio step 22; logit ratio step 23; logit ratio step 24; logit ratio step 25; logit ratio step 26; logit ratio step 27; logit ratio step 28; logit ratio step 29; logit ratio step 30

@@ -1,0 +1,275 @@
+{
+  "status": "pass",
+  "backend": {
+    "cudnn_benchmark": false,
+    "cudnn_deterministic": false,
+    "cudnn_allow_tf32": true,
+    "matmul_allow_tf32": false,
+    "matmul_precision": "highest"
+  },
+  "training_ratio": 1.0280265166958142,
+  "projected_steps": 26164,
+  "control_mean_ms": 10.914399883151054,
+  "candidate_mean_ms": 11.220292493700981,
+  "control_cv": 0.003688038919718888,
+  "candidate_cv": 0.004907317394975879,
+  "ratio_cv": 0.005145472918458336,
+  "p95_ratio": 1.0474796342680934,
+  "inference_ratio": 1.0270432571824404,
+  "inference_cv": 0.002118081546226144,
+  "peak_control_mb": 598.67626953125,
+  "peak_candidate_mb": 598.80224609375,
+  "tail_epochs": 14,
+  "expected_evaluations": 18,
+  "projected_total_seconds": 317.92254680767655,
+  "gates": {
+    "ratio": true,
+    "steps": true,
+    "p95": true,
+    "control_cv": true,
+    "candidate_cv": true,
+    "ratio_cv": true,
+    "memory": true,
+    "inference_ratio": true,
+    "inference_cv": true,
+    "evaluations": true,
+    "wall": true
+  },
+  "trials": [
+    {
+      "trial": 1,
+      "order": [
+        "control",
+        "candidate"
+      ],
+      "arms": {
+        "control": {
+          "arm": "control",
+          "mean_ms": 10.864242561161518,
+          "median_ms": 10.82511804997921,
+          "p95_ms": 10.868549346923828,
+          "inference_mean_ms": 3.5388216599822044,
+          "inference_p95_ms": 3.540363162755966,
+          "peak_mb": 598.67626953125,
+          "startup_seconds": 0.24774158373475075,
+          "backend": {
+            "cudnn_benchmark": false,
+            "cudnn_deterministic": false,
+            "cudnn_allow_tf32": true,
+            "matmul_allow_tf32": false,
+            "matmul_precision": "highest"
+          },
+          "warmup": 100,
+          "measured": 500
+        },
+        "candidate": {
+          "arm": "candidate",
+          "mean_ms": 11.206650622189045,
+          "median_ms": 11.166930198669434,
+          "p95_ms": 11.223271489143372,
+          "inference_mean_ms": 3.6562071666121483,
+          "inference_p95_ms": 3.660593181848526,
+          "peak_mb": 598.80224609375,
+          "startup_seconds": 0.22039325535297394,
+          "backend": {
+            "cudnn_benchmark": false,
+            "cudnn_deterministic": false,
+            "cudnn_allow_tf32": true,
+            "matmul_allow_tf32": false,
+            "matmul_precision": "highest"
+          },
+          "warmup": 100,
+          "measured": 500
+        }
+      }
+    },
+    {
+      "trial": 2,
+      "order": [
+        "candidate",
+        "control"
+      ],
+      "arms": {
+        "candidate": {
+          "arm": "candidate",
+          "mean_ms": 11.167527176439762,
+          "median_ms": 11.114494875073433,
+          "p95_ms": 11.194095015525818,
+          "inference_mean_ms": 3.65718299895525,
+          "inference_p95_ms": 3.659036010503769,
+          "peak_mb": 598.80224609375,
+          "startup_seconds": 0.2165573053061962,
+          "backend": {
+            "cudnn_benchmark": false,
+            "cudnn_deterministic": false,
+            "cudnn_allow_tf32": true,
+            "matmul_allow_tf32": false,
+            "matmul_precision": "highest"
+          },
+          "warmup": 100,
+          "measured": 500
+        },
+        "control": {
+          "arm": "control",
+          "mean_ms": 10.869084350764751,
+          "median_ms": 10.836273431777954,
+          "p95_ms": 11.001713573932648,
+          "inference_mean_ms": 3.5378840938210487,
+          "inference_p95_ms": 3.5475194454193115,
+          "peak_mb": 598.67626953125,
+          "startup_seconds": 0.21207661926746368,
+          "backend": {
+            "cudnn_benchmark": false,
+            "cudnn_deterministic": false,
+            "cudnn_allow_tf32": true,
+            "matmul_allow_tf32": false,
+            "matmul_precision": "highest"
+          },
+          "warmup": 100,
+          "measured": 500
+        }
+      }
+    },
+    {
+      "trial": 3,
+      "order": [
+        "control",
+        "candidate"
+      ],
+      "arms": {
+        "control": {
+          "arm": "control",
+          "mean_ms": 10.956845924258232,
+          "median_ms": 10.882716625928879,
+          "p95_ms": 10.941959917545319,
+          "inference_mean_ms": 3.5586995631456375,
+          "inference_p95_ms": 3.5674162209033966,
+          "peak_mb": 598.67626953125,
+          "startup_seconds": 0.20765958353877068,
+          "backend": {
+            "cudnn_benchmark": false,
+            "cudnn_deterministic": false,
+            "cudnn_allow_tf32": true,
+            "matmul_allow_tf32": false,
+            "matmul_precision": "highest"
+          },
+          "warmup": 100,
+          "measured": 500
+        },
+        "candidate": {
+          "arm": "candidate",
+          "mean_ms": 11.246970504522324,
+          "median_ms": 11.182079091668129,
+          "p95_ms": 11.280890554189682,
+          "inference_mean_ms": 3.657637044787407,
+          "inference_p95_ms": 3.6630481481552124,
+          "peak_mb": 598.80224609375,
+          "startup_seconds": 0.22768736258149147,
+          "backend": {
+            "cudnn_benchmark": false,
+            "cudnn_deterministic": false,
+            "cudnn_allow_tf32": true,
+            "matmul_allow_tf32": false,
+            "matmul_precision": "highest"
+          },
+          "warmup": 100,
+          "measured": 500
+        }
+      }
+    },
+    {
+      "trial": 4,
+      "order": [
+        "candidate",
+        "control"
+      ],
+      "arms": {
+        "candidate": {
+          "arm": "candidate",
+          "mean_ms": 11.313258603215218,
+          "median_ms": 11.181307956576347,
+          "p95_ms": 12.427546083927155,
+          "inference_mean_ms": 3.6617025956511497,
+          "inference_p95_ms": 3.670487552881241,
+          "peak_mb": 598.80224609375,
+          "startup_seconds": 0.22902754321694374,
+          "backend": {
+            "cudnn_benchmark": false,
+            "cudnn_deterministic": false,
+            "cudnn_allow_tf32": true,
+            "matmul_allow_tf32": false,
+            "matmul_precision": "highest"
+          },
+          "warmup": 100,
+          "measured": 500
+        },
+        "control": {
+          "arm": "control",
+          "mean_ms": 10.928174182772636,
+          "median_ms": 10.889897122979164,
+          "p95_ms": 10.94658300280571,
+          "inference_mean_ms": 3.580936312675476,
+          "inference_p95_ms": 3.5634711384773254,
+          "peak_mb": 598.67626953125,
+          "startup_seconds": 0.20988037809729576,
+          "backend": {
+            "cudnn_benchmark": false,
+            "cudnn_deterministic": false,
+            "cudnn_allow_tf32": true,
+            "matmul_allow_tf32": false,
+            "matmul_precision": "highest"
+          },
+          "warmup": 100,
+          "measured": 500
+        }
+      }
+    },
+    {
+      "trial": 5,
+      "order": [
+        "control",
+        "candidate"
+      ],
+      "arms": {
+        "control": {
+          "arm": "control",
+          "mean_ms": 10.953652396798134,
+          "median_ms": 10.88685728609562,
+          "p95_ms": 10.943282395601273,
+          "inference_mean_ms": 3.5746695026755333,
+          "inference_p95_ms": 3.5671181976795197,
+          "peak_mb": 598.67626953125,
+          "startup_seconds": 0.21154022589325905,
+          "backend": {
+            "cudnn_benchmark": false,
+            "cudnn_deterministic": false,
+            "cudnn_allow_tf32": true,
+            "matmul_allow_tf32": false,
+            "matmul_precision": "highest"
+          },
+          "warmup": 100,
+          "measured": 500
+        },
+        "candidate": {
+          "arm": "candidate",
+          "mean_ms": 11.167055562138557,
+          "median_ms": 11.103436350822449,
+          "p95_ms": 11.173520237207413,
+          "inference_mean_ms": 3.639408215880394,
+          "inference_p95_ms": 3.645859658718109,
+          "peak_mb": 598.80224609375,
+          "startup_seconds": 0.2797957696020603,
+          "backend": {
+            "cudnn_benchmark": false,
+            "cudnn_deterministic": false,
+            "cudnn_allow_tf32": true,
+            "matmul_allow_tf32": false,
+            "matmul_precision": "highest"
+          },
+          "warmup": 100,
+          "measured": 500
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,10 @@
+/SPXvePFS/users/david/autoresearch-benchmarks/autoresearch-cifar10/runs/v3.0.5-gpt-5-6-sol-adversarial/.autoresearch/goals/maximize-cifar10-best-test-accuracy/experiments/037/preflight_mechanism.py:79: UserWarning: Converting a tensor with requires_grad=True to a scalar may lead to unexpected behavior.
+Consider using tensor.detach() first. (Triggered internally at /pytorch/torch/csrc/autograd/generated/python_variable_methods.cpp:836.)
+  "output_error": float((actual - expected).abs().max()),
+Traceback (most recent call last):
+  File "/SPXvePFS/users/david/autoresearch-benchmarks/autoresearch-cifar10/runs/v3.0.5-gpt-5-6-sol-adversarial/.autoresearch/goals/maximize-cifar10-best-test-accuracy/experiments/037/preflight_mechanism.py", line 179, in <module>
+    main()
+    ~~~~^^
+  File "/SPXvePFS/users/david/autoresearch-benchmarks/autoresearch-cifar10/runs/v3.0.5-gpt-5-6-sol-adversarial/.autoresearch/goals/maximize-cifar10-best-test-accuracy/experiments/037/preflight_mechanism.py", line 174, in main
+    raise RuntimeError("; ".join(failures))
+RuntimeError: hard step64 mechanism null 1.0518205165863037/0.6530000567436218; cutmix step64 mechanism null 1.174131155014038/0.7926989793777466

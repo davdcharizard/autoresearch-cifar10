@@ -1,0 +1,124 @@
+{
+  "finite_targets": {
+    "hard": {
+      "all_gradients_finite": true,
+      "all_gradients_present": true,
+      "loss": 5.664454460144043
+    },
+    "probability": {
+      "all_gradients_finite": true,
+      "all_gradients_present": true,
+      "loss": 5.664454460144043
+    }
+  },
+  "gates": {
+    "control_gradient": true,
+    "even_inputs": true,
+    "finite_targets": true,
+    "impulses": true,
+    "inventory": true,
+    "padded_shortcut": true,
+    "parameters": true,
+    "pool_gradient": true,
+    "ramp": true,
+    "rng_equal": true,
+    "runtime_pool_count": true,
+    "runtime_pool_shapes": true,
+    "state_equal": true
+  },
+  "inventory": [
+    {
+      "in_channels": 32,
+      "out_channels": 64,
+      "pad_channels": 32,
+      "stride": 2
+    },
+    {
+      "in_channels": 64,
+      "out_channels": 128,
+      "pad_channels": 64,
+      "stride": 2
+    }
+  ],
+  "parameter_count": 1073962,
+  "pool_calls": [
+    {
+      "args": [],
+      "input": [
+        128,
+        32,
+        32,
+        32
+      ],
+      "kwargs": {
+        "ceil_mode": false,
+        "count_include_pad": false,
+        "kernel_size": 2,
+        "padding": 0,
+        "stride": 2
+      },
+      "output": [
+        128,
+        32,
+        16,
+        16
+      ]
+    },
+    {
+      "args": [],
+      "input": [
+        128,
+        64,
+        16,
+        16
+      ],
+      "kwargs": {
+        "ceil_mode": false,
+        "count_include_pad": false,
+        "kernel_size": 2,
+        "padding": 0,
+        "stride": 2
+      },
+      "output": [
+        128,
+        64,
+        8,
+        8
+      ]
+    }
+  ],
+  "state_hash": "1fe200deb7b0747a60b213379f955bb2402a5f01a81962e9b9e96d00e2a83d83",
+  "status": "pass",
+  "transition_shapes": [
+    {
+      "input": [
+        128,
+        32,
+        32,
+        32
+      ],
+      "name": "layer2.0",
+      "output": [
+        128,
+        64,
+        16,
+        16
+      ]
+    },
+    {
+      "input": [
+        128,
+        64,
+        16,
+        16
+      ],
+      "name": "layer3.0",
+      "output": [
+        128,
+        128,
+        8,
+        8
+      ]
+    }
+  ]
+}

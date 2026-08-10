@@ -1,0 +1,19 @@
+{
+  "arm": "control",
+  "mean_ms": 10.956845924258232,
+  "median_ms": 10.882716625928879,
+  "p95_ms": 10.941959917545319,
+  "inference_mean_ms": 3.5586995631456375,
+  "inference_p95_ms": 3.5674162209033966,
+  "peak_mb": 598.67626953125,
+  "startup_seconds": 0.20765958353877068,
+  "backend": {
+    "cudnn_benchmark": false,
+    "cudnn_deterministic": false,
+    "cudnn_allow_tf32": true,
+    "matmul_allow_tf32": false,
+    "matmul_precision": "highest"
+  },
+  "warmup": 100,
+  "measured": 500
+}

@@ -1,0 +1,10 @@
+Traceback (most recent call last):
+  File "/SPXvePFS/users/david/autoresearch-benchmarks/autoresearch-cifar10/runs/v3.0.5-gpt-5-6-sol-adversarial/.autoresearch/goals/maximize-cifar10-best-test-accuracy/experiments/029/timing_gc.py", line 356, in <module>
+    main()
+    ~~~~^^
+  File "/SPXvePFS/users/david/autoresearch-benchmarks/autoresearch-cifar10/runs/v3.0.5-gpt-5-6-sol-adversarial/.autoresearch/goals/maximize-cifar10-best-test-accuracy/experiments/029/timing_gc.py", line 352, in main
+    parent()
+    ~~~~~~^^
+  File "/SPXvePFS/users/david/autoresearch-benchmarks/autoresearch-cifar10/runs/v3.0.5-gpt-5-6-sol-adversarial/.autoresearch/goals/maximize-cifar10-best-test-accuracy/experiments/029/timing_gc.py", line 340, in parent
+    raise RuntimeError(f"timing gates failed: {failures}")
+RuntimeError: timing gates failed: ['aggregate timing ratio', 'paired timing ratio']

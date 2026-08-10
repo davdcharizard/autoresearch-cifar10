@@ -1,0 +1,18 @@
+{
+  "corpus_hashes": {
+    "preflight-corpus.pt": "e04dc2fe9d3994cef8bf192401bc36c63f306946fd3b9a2339b9f64040318946",
+    "weak-corpus.pt": "ffefe980241d9719c8d7f2b44fe81c1b3f94e35003b0a645d3fea5999a745032"
+  },
+  "boundary_model_hash": "bc9b95f27f6e2ca563e862084c5536d1f8e8e6629b45d73387d55aae6cfce124",
+  "reset_count": 59,
+  "buffer_norm_before": 1.2954934518624956,
+  "buffer_norm_after": 0.0,
+  "candidate_only_concentration_steps": [],
+  "loss_ema_ratio": 1.0002313822953541,
+  "update_ratio_max": 1.0303379144289349,
+  "relative_parameter_update_max": 0.0003489513769899299,
+  "own_median_ratio_max": 1.231899422516571,
+  "first_update_ratio": 0.5322789925687983,
+  "momentum_decay_ratio_step_44": 0.13055787680739
+}
+preflight=pass

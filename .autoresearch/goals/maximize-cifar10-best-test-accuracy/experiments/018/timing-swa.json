@@ -1,0 +1,26 @@
+{
+  "status": "pass",
+  "step_mean_ms": 10.893653988838196,
+  "conservative_step_ms": 11.128181797713042,
+  "step_cv": 0.0059948096074210555,
+  "snapshot_total_seconds": 0.07356667518615723,
+  "refresh_390_seconds": 1.3951785564422607,
+  "projected_snapshots": 8,
+  "snapshot_margin": 1,
+  "projected_steps": 26412,
+  "projected_evaluations": 18,
+  "conservative_eval_seconds": 0.8884554695338012,
+  "projected_wall_seconds": 324.99219845160843,
+  "peak_memory_mb": 610.95849609375,
+  "gates": {
+    "snapshot_time": true,
+    "refresh_time": true,
+    "snapshot_count": true,
+    "steps": true,
+    "step_cv": true,
+    "memory": true,
+    "evaluations": true,
+    "wall": true,
+    "spread": true
+  }
+}

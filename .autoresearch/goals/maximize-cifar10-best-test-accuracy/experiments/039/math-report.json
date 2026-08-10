@@ -1,0 +1,39 @@
+{
+  "status": "pass",
+  "failures": [],
+  "state_equal": true,
+  "inventory": [
+    19,
+    1073962
+  ],
+  "oracle": {
+    "zero": {
+      "finite": true,
+      "ratio_min": 0.0,
+      "ratio_max": 0.0,
+      "grad_min": 0.015380859375,
+      "grad_max": 0.015380859375
+    },
+    "constant": {
+      "finite": true,
+      "ratio_min": 1.0,
+      "ratio_max": 1.0,
+      "grad_min": 0.015625,
+      "grad_max": 0.015625
+    },
+    "one_hot": {
+      "finite": true,
+      "ratio_min": 1.109375,
+      "ratio_max": 1.109375,
+      "grad_min": 0.015380859375,
+      "grad_max": 0.017333984375
+    },
+    "random": {
+      "finite": true,
+      "ratio_min": 1.0016313883881351,
+      "ratio_max": 1.0036302143404745,
+      "grad_min": 0.015380914448191112,
+      "grad_max": 0.015871517815155334
+    }
+  }
+}

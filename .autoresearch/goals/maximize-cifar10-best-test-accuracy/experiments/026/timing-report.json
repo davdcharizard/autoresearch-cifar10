@@ -1,0 +1,801 @@
+{
+  "status": "pass",
+  "thresholds": {
+    "mean_counted_ratio": 1.01,
+    "pair_counted_ratio": 1.04,
+    "trial_cv": 0.03,
+    "projected_steps": 26629,
+    "loader_headroom": 1.2,
+    "median_wait_gpu_fraction": 0.1,
+    "p95_wait_gpu_fraction": 0.2,
+    "wall_counted_ratio": 1.07,
+    "wall_counted_control_delta": 0.02,
+    "hard_fraction_min": 0.485,
+    "hard_fraction_max": 0.515,
+    "cutmix_fraction_min": 0.235,
+    "cutmix_fraction_max": 0.265,
+    "mixup_fraction_min": 0.235,
+    "mixup_fraction_max": 0.265,
+    "peak_vram_mb": 650.0,
+    "allocation_growth_mb": 1.0,
+    "weak_rebuild_seconds": 5.0,
+    "projected_total_seconds": 540.0
+  },
+  "conditioning": {
+    "arm": "candidate",
+    "policy_identity": "production mixed_collate: u<0.25 CutMix(alpha=1); u<0.5 Mixup(alpha=0.4); else hard",
+    "backend": {
+      "deterministic_algorithms": true,
+      "cudnn_deterministic": true,
+      "cudnn_benchmark": false,
+      "cudnn_allow_tf32": true,
+      "matmul_allow_tf32": false
+    },
+    "warmups": 20,
+    "measured_strong_steps": 100,
+    "measured_weak_steps": 20,
+    "counts_including_warmup": [
+      66,
+      29,
+      25
+    ],
+    "counted": {
+      "mean_ms": 12.344908279677233,
+      "median_ms": 12.346543371677399,
+      "p95_ms": 12.556146830320358,
+      "count": 120
+    },
+    "strong_counted": {
+      "mean_ms": 12.29009035974741,
+      "median_ms": 12.311981990933418,
+      "p95_ms": 12.49934732913971,
+      "count": 100
+    },
+    "weak_counted": {
+      "mean_ms": 12.618997879326344,
+      "median_ms": 12.439887970685959,
+      "p95_ms": 13.761918991804123,
+      "count": 20
+    },
+    "iterator_wait": {
+      "mean_ms": 0.5288189897934595,
+      "median_ms": 0.1015644520521164,
+      "p95_ms": 0.15638023614883423,
+      "count": 120
+    },
+    "strong_iterator_wait": {
+      "mean_ms": 0.1071271300315857,
+      "median_ms": 0.10013394057750702,
+      "p95_ms": 0.15543773770332336,
+      "count": 100
+    },
+    "integrated_wall_seconds": 4.458626423031092,
+    "counted_seconds": 1.4813889935612679,
+    "wall_counted_ratio": 3.009760732940595,
+    "loader_headroom": 114.72434999540975,
+    "median_wait_gpu_fraction": 0.008147534936396108,
+    "p95_wait_gpu_fraction": 0.012647403977794512,
+    "peak_vram_mb": 598.67578125,
+    "allocation_growth_mb": 0.0,
+    "strong_workers_stopped": 8,
+    "weak_workers_stopped": 8,
+    "weak_rebuild_seconds": 2.8793324008584023,
+    "live_children": []
+  },
+  "trials": [
+    {
+      "trial": 1,
+      "order": [
+        "control",
+        "candidate"
+      ],
+      "control": {
+        "arm": "control",
+        "policy_identity": "one CPU draw; u<0.5 CutMix(alpha=1); else hard",
+        "backend": {
+          "deterministic_algorithms": true,
+          "cudnn_deterministic": true,
+          "cudnn_benchmark": false,
+          "cudnn_allow_tf32": true,
+          "matmul_allow_tf32": false
+        },
+        "warmups": 100,
+        "measured_strong_steps": 1000,
+        "measured_weak_steps": 100,
+        "counts_including_warmup": [
+          548,
+          552,
+          0
+        ],
+        "counted": {
+          "mean_ms": 12.57201715287837,
+          "median_ms": 12.437507510185242,
+          "p95_ms": 13.199355453252792,
+          "count": 1100
+        },
+        "strong_counted": {
+          "mean_ms": 12.517758563160896,
+          "median_ms": 12.45032623410225,
+          "p95_ms": 12.910045683383942,
+          "count": 1000
+        },
+        "weak_counted": {
+          "mean_ms": 13.11460305005312,
+          "median_ms": 12.350240722298622,
+          "p95_ms": 14.904439449310303,
+          "count": 100
+        },
+        "iterator_wait": {
+          "mean_ms": 0.25184833867983386,
+          "median_ms": 0.11343881487846375,
+          "p95_ms": 0.14440342783927917,
+          "count": 1100
+        },
+        "strong_iterator_wait": {
+          "mean_ms": 0.2233356311917305,
+          "median_ms": 0.11200830340385437,
+          "p95_ms": 0.13655051589012146,
+          "count": 1000
+        },
+        "integrated_wall_seconds": 17.40946777909994,
+        "counted_seconds": 13.829218868166208,
+        "wall_counted_ratio": 1.2588901763045481,
+        "loader_headroom": 56.04908852369633,
+        "median_wait_gpu_fraction": 0.008947952050576283,
+        "p95_wait_gpu_fraction": 0.010908543666274442,
+        "peak_vram_mb": 598.67578125,
+        "allocation_growth_mb": 0.0,
+        "strong_workers_stopped": 8,
+        "weak_workers_stopped": 8,
+        "weak_rebuild_seconds": 2.8882786631584167,
+        "live_children": [],
+        "one_time_overhead_seconds": 3.3032157383859158,
+        "projected_wait_seconds": 7.694663836941123,
+        "projected_wall_counted_ratio": 1.0366595985844234
+      },
+      "candidate": {
+        "arm": "candidate",
+        "policy_identity": "production mixed_collate: u<0.25 CutMix(alpha=1); u<0.5 Mixup(alpha=0.4); else hard",
+        "backend": {
+          "deterministic_algorithms": true,
+          "cudnn_deterministic": true,
+          "cudnn_benchmark": false,
+          "cudnn_allow_tf32": true,
+          "matmul_allow_tf32": false
+        },
+        "warmups": 100,
+        "measured_strong_steps": 1000,
+        "measured_weak_steps": 100,
+        "counts_including_warmup": [
+          548,
+          261,
+          291
+        ],
+        "counted": {
+          "mean_ms": 12.463057450950146,
+          "median_ms": 12.35642097890377,
+          "p95_ms": 12.966204434633255,
+          "count": 1100
+        },
+        "strong_counted": {
+          "mean_ms": 12.480244759470224,
+          "median_ms": 12.377126142382622,
+          "p95_ms": 13.00281286239624,
+          "count": 1000
+        },
+        "weak_counted": {
+          "mean_ms": 12.29118436574936,
+          "median_ms": 12.2295543551445,
+          "p95_ms": 12.687381356954575,
+          "count": 100
+        },
+        "iterator_wait": {
+          "mean_ms": 0.24979024786840787,
+          "median_ms": 0.10280311107635498,
+          "p95_ms": 0.1439414918422699,
+          "count": 1100
+        },
+        "strong_iterator_wait": {
+          "mean_ms": 0.21822956204414368,
+          "median_ms": 0.1018475741147995,
+          "p95_ms": 0.15050917863845825,
+          "count": 1000
+        },
+        "integrated_wall_seconds": 17.308580219745636,
+        "counted_seconds": 13.70936319604516,
+        "wall_counted_ratio": 1.2625371413851496,
+        "loader_headroom": 57.188607457983665,
+        "median_wait_gpu_fraction": 0.008160703261650042,
+        "p95_wait_gpu_fraction": 0.01205979382129099,
+        "peak_vram_mb": 598.67578125,
+        "allocation_growth_mb": 0.0,
+        "strong_workers_stopped": 8,
+        "weak_workers_stopped": 8,
+        "weak_rebuild_seconds": 2.970282018184662,
+        "live_children": [],
+        "one_time_overhead_seconds": 3.324447751045227,
+        "projected_wait_seconds": 7.737700146943331,
+        "projected_wall_counted_ratio": 1.0368738263266286
+      },
+      "counted_ratio": 0.9913331567557336,
+      "integrated_wall_ratio": 0.9942050176010883,
+      "wall_counted_delta": 0.003646965080601472,
+      "projected_wall_counted_delta": 0.00021422774220525298
+    },
+    {
+      "trial": 2,
+      "order": [
+        "candidate",
+        "control"
+      ],
+      "control": {
+        "arm": "control",
+        "policy_identity": "one CPU draw; u<0.5 CutMix(alpha=1); else hard",
+        "backend": {
+          "deterministic_algorithms": true,
+          "cudnn_deterministic": true,
+          "cudnn_benchmark": false,
+          "cudnn_allow_tf32": true,
+          "matmul_allow_tf32": false
+        },
+        "warmups": 100,
+        "measured_strong_steps": 1000,
+        "measured_weak_steps": 100,
+        "counts_including_warmup": [
+          548,
+          552,
+          0
+        ],
+        "counted": {
+          "mean_ms": 12.455091991207818,
+          "median_ms": 12.418612837791443,
+          "p95_ms": 12.875650078058243,
+          "count": 1100
+        },
+        "strong_counted": {
+          "mean_ms": 12.405530977994204,
+          "median_ms": 12.424889951944351,
+          "p95_ms": 12.730542570352554,
+          "count": 1000
+        },
+        "weak_counted": {
+          "mean_ms": 12.950702123343945,
+          "median_ms": 12.25406862795353,
+          "p95_ms": 14.703251421451569,
+          "count": 100
+        },
+        "iterator_wait": {
+          "mean_ms": 0.24606062268668957,
+          "median_ms": 0.11248141527175903,
+          "p95_ms": 0.1351572573184967,
+          "count": 1100
+        },
+        "strong_iterator_wait": {
+          "mean_ms": 0.21652396395802498,
+          "median_ms": 0.11264905333518982,
+          "p95_ms": 0.12960657477378845,
+          "count": 1000
+        },
+        "integrated_wall_seconds": 17.271122574806213,
+        "counted_seconds": 13.700601190328598,
+        "wall_counted_ratio": 1.2606105626224697,
+        "loader_headroom": 57.29403226886758,
+        "median_wait_gpu_fraction": 0.009080550726527914,
+        "p95_wait_gpu_fraction": 0.01044748306248992,
+        "peak_vram_mb": 598.67578125,
+        "allocation_growth_mb": 0.0,
+        "strong_workers_stopped": 8,
+        "weak_workers_stopped": 8,
+        "weak_rebuild_seconds": 2.8929105922579765,
+        "live_children": [],
+        "one_time_overhead_seconds": 3.299854699522257,
+        "projected_wait_seconds": 7.572041046105325,
+        "projected_wall_counted_ratio": 1.0362396524854252
+      },
+      "candidate": {
+        "arm": "candidate",
+        "policy_identity": "production mixed_collate: u<0.25 CutMix(alpha=1); u<0.5 Mixup(alpha=0.4); else hard",
+        "backend": {
+          "deterministic_algorithms": true,
+          "cudnn_deterministic": true,
+          "cudnn_benchmark": false,
+          "cudnn_allow_tf32": true,
+          "matmul_allow_tf32": false
+        },
+        "warmups": 100,
+        "measured_strong_steps": 1000,
+        "measured_weak_steps": 100,
+        "counts_including_warmup": [
+          548,
+          261,
+          291
+        ],
+        "counted": {
+          "mean_ms": 12.473849579691887,
+          "median_ms": 12.44896836578846,
+          "p95_ms": 12.952081859111786,
+          "count": 1100
+        },
+        "strong_counted": {
+          "mean_ms": 12.502888333052397,
+          "median_ms": 12.464204803109169,
+          "p95_ms": 12.968268245458603,
+          "count": 1000
+        },
+        "weak_counted": {
+          "mean_ms": 12.183462046086788,
+          "median_ms": 12.053219601511955,
+          "p95_ms": 12.754339724779129,
+          "count": 100
+        },
+        "iterator_wait": {
+          "mean_ms": 0.24843281304294415,
+          "median_ms": 0.10097958147525787,
+          "p95_ms": 0.12975558638572693,
+          "count": 1100
+        },
+        "strong_iterator_wait": {
+          "mean_ms": 0.20591194555163383,
+          "median_ms": 0.10037422180175781,
+          "p95_ms": 0.1273229718208313,
+          "count": 1000
+        },
+        "integrated_wall_seconds": 17.417139548808336,
+        "counted_seconds": 13.721234537661076,
+        "wall_counted_ratio": 1.269356594773087,
+        "loader_headroom": 60.7195871980978,
+        "median_wait_gpu_fraction": 0.008028082722006757,
+        "p95_wait_gpu_fraction": 0.010183484682034848,
+        "peak_vram_mb": 598.67578125,
+        "allocation_growth_mb": 0.0,
+        "strong_workers_stopped": 8,
+        "weak_workers_stopped": 8,
+        "weak_rebuild_seconds": 3.092922907322645,
+        "live_children": [],
+        "one_time_overhead_seconds": 3.422628916800022,
+        "projected_wait_seconds": 8.05500444958359,
+        "projected_wall_counted_ratio": 1.0382587778879453
+      },
+      "counted_ratio": 1.0015060176590675,
+      "integrated_wall_ratio": 1.0084543997281985,
+      "wall_counted_delta": 0.0087460321506172,
+      "projected_wall_counted_delta": 0.002019125402520139
+    },
+    {
+      "trial": 3,
+      "order": [
+        "control",
+        "candidate"
+      ],
+      "control": {
+        "arm": "control",
+        "policy_identity": "one CPU draw; u<0.5 CutMix(alpha=1); else hard",
+        "backend": {
+          "deterministic_algorithms": true,
+          "cudnn_deterministic": true,
+          "cudnn_benchmark": false,
+          "cudnn_allow_tf32": true,
+          "matmul_allow_tf32": false
+        },
+        "warmups": 100,
+        "measured_strong_steps": 1000,
+        "measured_weak_steps": 100,
+        "counts_including_warmup": [
+          548,
+          552,
+          0
+        ],
+        "counted": {
+          "mean_ms": 12.601266035979444,
+          "median_ms": 12.596068903803825,
+          "p95_ms": 13.087783008813858,
+          "count": 1100
+        },
+        "strong_counted": {
+          "mean_ms": 12.628565188497305,
+          "median_ms": 12.6110278069973,
+          "p95_ms": 13.087783008813858,
+          "count": 1000
+        },
+        "weak_counted": {
+          "mean_ms": 12.328274510800838,
+          "median_ms": 12.177513912320137,
+          "p95_ms": 12.954119592905045,
+          "count": 100
+        },
+        "iterator_wait": {
+          "mean_ms": 0.2575091848319227,
+          "median_ms": 0.10332278907299042,
+          "p95_ms": 0.13215839862823486,
+          "count": 1100
+        },
+        "strong_iterator_wait": {
+          "mean_ms": 0.21430790424346924,
+          "median_ms": 0.10264851152896881,
+          "p95_ms": 0.12202560901641846,
+          "count": 1000
+        },
+        "integrated_wall_seconds": 17.40025107935071,
+        "counted_seconds": 13.861392639577389,
+        "wall_counted_ratio": 1.2553032391326313,
+        "loader_headroom": 58.92720211640138,
+        "median_wait_gpu_fraction": 0.00812827981617943,
+        "p95_wait_gpu_fraction": 0.009662666122004514,
+        "peak_vram_mb": 598.67578125,
+        "allocation_growth_mb": 0.0,
+        "strong_workers_stopped": 8,
+        "weak_workers_stopped": 8,
+        "weak_rebuild_seconds": 2.900791000574827,
+        "live_children": [],
+        "one_time_overhead_seconds": 3.255598336458206,
+        "projected_wait_seconds": 8.321105793565511,
+        "projected_wall_counted_ratio": 1.0385890137667457
+      },
+      "candidate": {
+        "arm": "candidate",
+        "policy_identity": "production mixed_collate: u<0.25 CutMix(alpha=1); u<0.5 Mixup(alpha=0.4); else hard",
+        "backend": {
+          "deterministic_algorithms": true,
+          "cudnn_deterministic": true,
+          "cudnn_benchmark": false,
+          "cudnn_allow_tf32": true,
+          "matmul_allow_tf32": false
+        },
+        "warmups": 100,
+        "measured_strong_steps": 1000,
+        "measured_weak_steps": 100,
+        "counts_including_warmup": [
+          548,
+          261,
+          291
+        ],
+        "counted": {
+          "mean_ms": 12.444026581943035,
+          "median_ms": 12.43465207517147,
+          "p95_ms": 12.808766216039658,
+          "count": 1100
+        },
+        "strong_counted": {
+          "mean_ms": 12.47231762856245,
+          "median_ms": 12.458287179470062,
+          "p95_ms": 12.813292443752289,
+          "count": 1000
+        },
+        "weak_counted": {
+          "mean_ms": 12.161116115748882,
+          "median_ms": 12.030832469463348,
+          "p95_ms": 12.213528156280518,
+          "count": 100
+        },
+        "iterator_wait": {
+          "mean_ms": 0.2478116378188133,
+          "median_ms": 0.0997353345155716,
+          "p95_ms": 0.12115761637687683,
+          "count": 1100
+        },
+        "strong_iterator_wait": {
+          "mean_ms": 0.21391085162758827,
+          "median_ms": 0.09893998503684998,
+          "p95_ms": 0.11813640594482422,
+          "count": 1000
+        },
+        "integrated_wall_seconds": 17.11567150056362,
+        "counted_seconds": 13.688429240137339,
+        "wall_counted_ratio": 1.2503751307255102,
+        "loader_headroom": 58.30614732101738,
+        "median_wait_gpu_fraction": 0.007932766626330195,
+        "p95_wait_gpu_fraction": 0.009471888823155358,
+        "peak_vram_mb": 598.67578125,
+        "allocation_growth_mb": 0.0,
+        "strong_workers_stopped": 8,
+        "weak_workers_stopped": 8,
+        "weak_rebuild_seconds": 2.815192051231861,
+        "live_children": [],
+        "one_time_overhead_seconds": 3.1546494588255882,
+        "projected_wait_seconds": 7.760022613875564,
+        "projected_wall_counted_ratio": 1.036382240242337
+      },
+      "counted_ratio": 0.9875219320354435,
+      "integrated_wall_ratio": 0.9836450877927385,
+      "wall_counted_delta": -0.004928108407121101,
+      "projected_wall_counted_delta": -0.0022067735244086784
+    },
+    {
+      "trial": 4,
+      "order": [
+        "candidate",
+        "control"
+      ],
+      "control": {
+        "arm": "control",
+        "policy_identity": "one CPU draw; u<0.5 CutMix(alpha=1); else hard",
+        "backend": {
+          "deterministic_algorithms": true,
+          "cudnn_deterministic": true,
+          "cudnn_benchmark": false,
+          "cudnn_allow_tf32": true,
+          "matmul_allow_tf32": false
+        },
+        "warmups": 100,
+        "measured_strong_steps": 1000,
+        "measured_weak_steps": 100,
+        "counts_including_warmup": [
+          548,
+          552,
+          0
+        ],
+        "counted": {
+          "mean_ms": 12.208715677261353,
+          "median_ms": 12.1688861399889,
+          "p95_ms": 12.572575360536575,
+          "count": 1100
+        },
+        "strong_counted": {
+          "mean_ms": 12.214227993041277,
+          "median_ms": 12.197444215416908,
+          "p95_ms": 12.563928961753845,
+          "count": 1000
+        },
+        "weak_counted": {
+          "mean_ms": 12.153592519462109,
+          "median_ms": 11.945657432079315,
+          "p95_ms": 14.139726758003235,
+          "count": 100
+        },
+        "iterator_wait": {
+          "mean_ms": 0.23810700936750934,
+          "median_ms": 0.100674107670784,
+          "p95_ms": 0.12064725160598755,
+          "count": 1100
+        },
+        "strong_iterator_wait": {
+          "mean_ms": 0.21469467878341675,
+          "median_ms": 0.10001473128795624,
+          "p95_ms": 0.11771917343139648,
+          "count": 1000
+        },
+        "integrated_wall_seconds": 17.019256558269262,
+        "counted_seconds": 13.429587244987488,
+        "wall_counted_ratio": 1.2672955801096268,
+        "loader_headroom": 56.89115381086342,
+        "median_wait_gpu_fraction": 0.008188379269237229,
+        "p95_wait_gpu_fraction": 0.009637872610406795,
+        "peak_vram_mb": 598.67578125,
+        "allocation_growth_mb": 0.0,
+        "strong_workers_stopped": 8,
+        "weak_workers_stopped": 8,
+        "weak_rebuild_seconds": 2.978094518184662,
+        "live_children": [],
+        "one_time_overhead_seconds": 3.3277516029775143,
+        "projected_wait_seconds": 7.1603991938829425,
+        "projected_wall_counted_ratio": 1.0349605026562014
+      },
+      "candidate": {
+        "arm": "candidate",
+        "policy_identity": "production mixed_collate: u<0.25 CutMix(alpha=1); u<0.5 Mixup(alpha=0.4); else hard",
+        "backend": {
+          "deterministic_algorithms": true,
+          "cudnn_deterministic": true,
+          "cudnn_benchmark": false,
+          "cudnn_allow_tf32": true,
+          "matmul_allow_tf32": false
+        },
+        "warmups": 100,
+        "measured_strong_steps": 1000,
+        "measured_weak_steps": 100,
+        "counts_including_warmup": [
+          548,
+          261,
+          291
+        ],
+        "counted": {
+          "mean_ms": 12.543309798294848,
+          "median_ms": 12.434035539627075,
+          "p95_ms": 14.451742172241211,
+          "count": 1100
+        },
+        "strong_counted": {
+          "mean_ms": 12.543079398572445,
+          "median_ms": 12.442588806152344,
+          "p95_ms": 13.64954188466072,
+          "count": 1000
+        },
+        "weak_counted": {
+          "mean_ms": 12.545613795518875,
+          "median_ms": 12.077981606125832,
+          "p95_ms": 14.611586928367615,
+          "count": 100
+        },
+        "iterator_wait": {
+          "mean_ms": 0.23642062802206387,
+          "median_ms": 0.10238587856292725,
+          "p95_ms": 0.1574791967868805,
+          "count": 1100
+        },
+        "strong_iterator_wait": {
+          "mean_ms": 0.21195422485470772,
+          "median_ms": 0.10138563811779022,
+          "p95_ms": 0.1506805419921875,
+          "count": 1000
+        },
+        "integrated_wall_seconds": 17.321124598383904,
+        "counted_seconds": 13.797640778124332,
+        "wall_counted_ratio": 1.2553685718391747,
+        "loader_headroom": 59.17824665760065,
+        "median_wait_gpu_fraction": 0.008082994207094723,
+        "p95_wait_gpu_fraction": 0.012013042188773578,
+        "peak_vram_mb": 598.67578125,
+        "allocation_growth_mb": 0.0,
+        "strong_workers_stopped": 8,
+        "weak_workers_stopped": 8,
+        "weak_rebuild_seconds": 2.8475158773362637,
+        "live_children": [],
+        "one_time_overhead_seconds": 3.263421129435301,
+        "projected_wait_seconds": 7.149066479586065,
+        "projected_wall_counted_ratio": 1.0347082920300712
+      },
+      "counted_ratio": 1.0274061686649543,
+      "integrated_wall_ratio": 1.0177368523167347,
+      "wall_counted_delta": -0.011927008270452122,
+      "projected_wall_counted_delta": -0.0002522106261302337
+    },
+    {
+      "trial": 5,
+      "order": [
+        "control",
+        "candidate"
+      ],
+      "control": {
+        "arm": "control",
+        "policy_identity": "one CPU draw; u<0.5 CutMix(alpha=1); else hard",
+        "backend": {
+          "deterministic_algorithms": true,
+          "cudnn_deterministic": true,
+          "cudnn_benchmark": false,
+          "cudnn_allow_tf32": true,
+          "matmul_allow_tf32": false
+        },
+        "warmups": 100,
+        "measured_strong_steps": 1000,
+        "measured_weak_steps": 100,
+        "counts_including_warmup": [
+          548,
+          552,
+          0
+        ],
+        "counted": {
+          "mean_ms": 12.42340799421072,
+          "median_ms": 12.422867119312286,
+          "p95_ms": 12.72089034318924,
+          "count": 1100
+        },
+        "strong_counted": {
+          "mean_ms": 12.43422894179821,
+          "median_ms": 12.439848855137825,
+          "p95_ms": 12.710340321063995,
+          "count": 1000
+        },
+        "weak_counted": {
+          "mean_ms": 12.31519851833582,
+          "median_ms": 12.011095881462097,
+          "p95_ms": 14.528099447488785,
+          "count": 100
+        },
+        "iterator_wait": {
+          "mean_ms": 0.23483879525553095,
+          "median_ms": 0.10184384882450104,
+          "p95_ms": 0.12958049774169922,
+          "count": 1100
+        },
+        "strong_iterator_wait": {
+          "mean_ms": 0.20906152948737144,
+          "median_ms": 0.10102801024913788,
+          "p95_ms": 0.12404099106788635,
+          "count": 1000
+        },
+        "integrated_wall_seconds": 17.214446645230055,
+        "counted_seconds": 13.665748793631792,
+        "wall_counted_ratio": 1.2596782587758344,
+        "loader_headroom": 59.476408559181195,
+        "median_wait_gpu_fraction": 0.00812499196548712,
+        "p95_wait_gpu_fraction": 0.009975768634186642,
+        "peak_vram_mb": 598.67578125,
+        "allocation_growth_mb": 0.0,
+        "strong_workers_stopped": 8,
+        "weak_workers_stopped": 8,
+        "weak_rebuild_seconds": 2.927681528031826,
+        "live_children": [],
+        "one_time_overhead_seconds": 3.2903751768171787,
+        "projected_wait_seconds": 7.148835608310997,
+        "projected_wall_counted_ratio": 1.0347973692837606
+      },
+      "candidate": {
+        "arm": "candidate",
+        "policy_identity": "production mixed_collate: u<0.25 CutMix(alpha=1); u<0.5 Mixup(alpha=0.4); else hard",
+        "backend": {
+          "deterministic_algorithms": true,
+          "cudnn_deterministic": true,
+          "cudnn_benchmark": false,
+          "cudnn_allow_tf32": true,
+          "matmul_allow_tf32": false
+        },
+        "warmups": 100,
+        "measured_strong_steps": 1000,
+        "measured_weak_steps": 100,
+        "counts_including_warmup": [
+          548,
+          261,
+          291
+        ],
+        "counted": {
+          "mean_ms": 12.583170770244164,
+          "median_ms": 12.526888400316238,
+          "p95_ms": 12.96037808060646,
+          "count": 1100
+        },
+        "strong_counted": {
+          "mean_ms": 12.619064755737782,
+          "median_ms": 12.56738230586052,
+          "p95_ms": 13.068150728940964,
+          "count": 1000
+        },
+        "weak_counted": {
+          "mean_ms": 12.224230915307999,
+          "median_ms": 12.186797335743904,
+          "p95_ms": 12.341093271970749,
+          "count": 100
+        },
+        "iterator_wait": {
+          "mean_ms": 0.24824851277199658,
+          "median_ms": 0.10423734784126282,
+          "p95_ms": 0.17442554235458374,
+          "count": 1100
+        },
+        "strong_iterator_wait": {
+          "mean_ms": 0.22518278658390045,
+          "median_ms": 0.10413303971290588,
+          "p95_ms": 0.1758001744747162,
+          "count": 1000
+        },
+        "integrated_wall_seconds": 17.51147961243987,
+        "counted_seconds": 13.841487847268581,
+        "wall_counted_ratio": 1.2651443114835021,
+        "loader_headroom": 56.03920684690553,
+        "median_wait_gpu_fraction": 0.008252040997377202,
+        "p95_wait_gpu_fraction": 0.013931315662262637,
+        "peak_vram_mb": 598.67578125,
+        "allocation_growth_mb": 0.0,
+        "strong_workers_stopped": 8,
+        "weak_workers_stopped": 8,
+        "weak_rebuild_seconds": 3.016363251954317,
+        "live_children": [],
+        "one_time_overhead_seconds": 3.396918401122093,
+        "projected_wait_seconds": 7.421996269345284,
+        "projected_wall_counted_ratio": 1.0360630489015579
+      },
+      "counted_ratio": 1.0128598188281261,
+      "integrated_wall_ratio": 1.017254865830504,
+      "wall_counted_delta": 0.005466052707667757,
+      "projected_wall_counted_delta": 0.0012656796177972218
+    }
+  ],
+  "mean_counted_ratio": 1.003965842454542,
+  "max_pair_counted_ratio": 1.0274061686649543,
+  "control_cv": 0.01248641668789076,
+  "candidate_cv": 0.0047261704100111926,
+  "projected_steps": 26791,
+  "candidate_counts": [
+    2740,
+    1305,
+    1455
+  ],
+  "candidate_fractions": [
+    0.49818181818181817,
+    0.23727272727272727,
+    0.26454545454545453
+  ],
+  "mean_integrated_wall_ratio": 1.0042592446538527,
+  "max_projection_ratio": 1.0042592446538527,
+  "projected_total_seconds": 332.1085322070291,
+  "failures": []
+}

@@ -1,0 +1,13 @@
+source_assignment_line=27
+source_load_line=236
+schedule_points=[0.0, 0.2, 0.4, 0.6, 0.7, 0.8, 0.8000000000000002, 0.85, 0.9, 0.95, 1.0]
+accepted_lrs=[0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.01, 0.008550178566873413, 0.005050000000000001, 0.0015498214331265935, 0.0001]
+candidate_lrs=[0.1, 0.1, 0.1, 0.1, 0.1, 0.1, 0.02, 0.017085712472806155, 0.01005, 0.0030142875271938594, 0.0001]
+state_hash=ef6b4f64baf2a6b1b9f5c30954ce8e827584f48a9739bcb679747ca36c5d6d32
+rng_hash=375a6c31ce715c67a769b4f348e443cd12c43eee85b2d5f441f995c213c4dc86
+num_params=1073962
+momentum_buffers_equal=True
+aggregate_update_ratio=2.000000000
+tensor_update_ratio_min=1.999894128
+tensor_update_ratio_max=2.000066692
+preflight=pass

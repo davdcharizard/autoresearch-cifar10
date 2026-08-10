@@ -1,0 +1,603 @@
+{
+  "status": "failed",
+  "controller_sha256": "bd2912dc4d872d5ea1210184984c099bb3ca5e9f23b156b4ef0175e1f6ca1af8",
+  "train_sha256": "baf8760babca1fd1d215c32e1d06f010feb85f1230dc857c53015bf9f5fe1fc9",
+  "offsets": {
+    "label": 6,
+    "offsets": [
+      {
+        "top": 0,
+        "left": 0,
+        "expected_area": 0.234375,
+        "changed_area": 0.2314453125
+      },
+      {
+        "top": 0,
+        "left": 1,
+        "expected_area": 0.20703125,
+        "changed_area": 0.2041015625
+      },
+      {
+        "top": 0,
+        "left": 2,
+        "expected_area": 0.1796875,
+        "changed_area": 0.1767578125
+      },
+      {
+        "top": 0,
+        "left": 3,
+        "expected_area": 0.15234375,
+        "changed_area": 0.1494140625
+      },
+      {
+        "top": 0,
+        "left": 4,
+        "expected_area": 0.125,
+        "changed_area": 0.1240234375
+      },
+      {
+        "top": 0,
+        "left": 5,
+        "expected_area": 0.15234375,
+        "changed_area": 0.1513671875
+      },
+      {
+        "top": 0,
+        "left": 6,
+        "expected_area": 0.1796875,
+        "changed_area": 0.1796875
+      },
+      {
+        "top": 0,
+        "left": 7,
+        "expected_area": 0.20703125,
+        "changed_area": 0.20703125
+      },
+      {
+        "top": 0,
+        "left": 8,
+        "expected_area": 0.234375,
+        "changed_area": 0.234375
+      },
+      {
+        "top": 1,
+        "left": 0,
+        "expected_area": 0.20703125,
+        "changed_area": 0.2041015625
+      },
+      {
+        "top": 1,
+        "left": 1,
+        "expected_area": 0.1787109375,
+        "changed_area": 0.17578125
+      },
+      {
+        "top": 1,
+        "left": 2,
+        "expected_area": 0.150390625,
+        "changed_area": 0.1474609375
+      },
+      {
+        "top": 1,
+        "left": 3,
+        "expected_area": 0.1220703125,
+        "changed_area": 0.119140625
+      },
+      {
+        "top": 1,
+        "left": 4,
+        "expected_area": 0.09375,
+        "changed_area": 0.0927734375
+      },
+      {
+        "top": 1,
+        "left": 5,
+        "expected_area": 0.1220703125,
+        "changed_area": 0.12109375
+      },
+      {
+        "top": 1,
+        "left": 6,
+        "expected_area": 0.150390625,
+        "changed_area": 0.150390625
+      },
+      {
+        "top": 1,
+        "left": 7,
+        "expected_area": 0.1787109375,
+        "changed_area": 0.1787109375
+      },
+      {
+        "top": 1,
+        "left": 8,
+        "expected_area": 0.20703125,
+        "changed_area": 0.20703125
+      },
+      {
+        "top": 2,
+        "left": 0,
+        "expected_area": 0.1796875,
+        "changed_area": 0.1767578125
+      },
+      {
+        "top": 2,
+        "left": 1,
+        "expected_area": 0.150390625,
+        "changed_area": 0.1474609375
+      },
+      {
+        "top": 2,
+        "left": 2,
+        "expected_area": 0.12109375,
+        "changed_area": 0.1181640625
+      },
+      {
+        "top": 2,
+        "left": 3,
+        "expected_area": 0.091796875,
+        "changed_area": 0.0888671875
+      },
+      {
+        "top": 2,
+        "left": 4,
+        "expected_area": 0.0625,
+        "changed_area": 0.0615234375
+      },
+      {
+        "top": 2,
+        "left": 5,
+        "expected_area": 0.091796875,
+        "changed_area": 0.0908203125
+      },
+      {
+        "top": 2,
+        "left": 6,
+        "expected_area": 0.12109375,
+        "changed_area": 0.12109375
+      },
+      {
+        "top": 2,
+        "left": 7,
+        "expected_area": 0.150390625,
+        "changed_area": 0.150390625
+      },
+      {
+        "top": 2,
+        "left": 8,
+        "expected_area": 0.1796875,
+        "changed_area": 0.1796875
+      },
+      {
+        "top": 3,
+        "left": 0,
+        "expected_area": 0.15234375,
+        "changed_area": 0.1494140625
+      },
+      {
+        "top": 3,
+        "left": 1,
+        "expected_area": 0.1220703125,
+        "changed_area": 0.119140625
+      },
+      {
+        "top": 3,
+        "left": 2,
+        "expected_area": 0.091796875,
+        "changed_area": 0.0888671875
+      },
+      {
+        "top": 3,
+        "left": 3,
+        "expected_area": 0.0615234375,
+        "changed_area": 0.05859375
+      },
+      {
+        "top": 3,
+        "left": 4,
+        "expected_area": 0.03125,
+        "changed_area": 0.0302734375
+      },
+      {
+        "top": 3,
+        "left": 5,
+        "expected_area": 0.0615234375,
+        "changed_area": 0.060546875
+      },
+      {
+        "top": 3,
+        "left": 6,
+        "expected_area": 0.091796875,
+        "changed_area": 0.091796875
+      },
+      {
+        "top": 3,
+        "left": 7,
+        "expected_area": 0.1220703125,
+        "changed_area": 0.1220703125
+      },
+      {
+        "top": 3,
+        "left": 8,
+        "expected_area": 0.15234375,
+        "changed_area": 0.15234375
+      },
+      {
+        "top": 4,
+        "left": 0,
+        "expected_area": 0.125,
+        "changed_area": 0.1240234375
+      },
+      {
+        "top": 4,
+        "left": 1,
+        "expected_area": 0.09375,
+        "changed_area": 0.0927734375
+      },
+      {
+        "top": 4,
+        "left": 2,
+        "expected_area": 0.0625,
+        "changed_area": 0.0615234375
+      },
+      {
+        "top": 4,
+        "left": 3,
+        "expected_area": 0.03125,
+        "changed_area": 0.0302734375
+      },
+      {
+        "top": 4,
+        "left": 4,
+        "expected_area": 0.0,
+        "changed_area": 0.0
+      },
+      {
+        "top": 4,
+        "left": 5,
+        "expected_area": 0.03125,
+        "changed_area": 0.03125
+      },
+      {
+        "top": 4,
+        "left": 6,
+        "expected_area": 0.0625,
+        "changed_area": 0.0625
+      },
+      {
+        "top": 4,
+        "left": 7,
+        "expected_area": 0.09375,
+        "changed_area": 0.09375
+      },
+      {
+        "top": 4,
+        "left": 8,
+        "expected_area": 0.125,
+        "changed_area": 0.125
+      },
+      {
+        "top": 5,
+        "left": 0,
+        "expected_area": 0.15234375,
+        "changed_area": 0.1513671875
+      },
+      {
+        "top": 5,
+        "left": 1,
+        "expected_area": 0.1220703125,
+        "changed_area": 0.12109375
+      },
+      {
+        "top": 5,
+        "left": 2,
+        "expected_area": 0.091796875,
+        "changed_area": 0.0908203125
+      },
+      {
+        "top": 5,
+        "left": 3,
+        "expected_area": 0.0615234375,
+        "changed_area": 0.060546875
+      },
+      {
+        "top": 5,
+        "left": 4,
+        "expected_area": 0.03125,
+        "changed_area": 0.03125
+      },
+      {
+        "top": 5,
+        "left": 5,
+        "expected_area": 0.0615234375,
+        "changed_area": 0.0615234375
+      },
+      {
+        "top": 5,
+        "left": 6,
+        "expected_area": 0.091796875,
+        "changed_area": 0.091796875
+      },
+      {
+        "top": 5,
+        "left": 7,
+        "expected_area": 0.1220703125,
+        "changed_area": 0.1220703125
+      },
+      {
+        "top": 5,
+        "left": 8,
+        "expected_area": 0.15234375,
+        "changed_area": 0.15234375
+      },
+      {
+        "top": 6,
+        "left": 0,
+        "expected_area": 0.1796875,
+        "changed_area": 0.1796875
+      },
+      {
+        "top": 6,
+        "left": 1,
+        "expected_area": 0.150390625,
+        "changed_area": 0.150390625
+      },
+      {
+        "top": 6,
+        "left": 2,
+        "expected_area": 0.12109375,
+        "changed_area": 0.12109375
+      },
+      {
+        "top": 6,
+        "left": 3,
+        "expected_area": 0.091796875,
+        "changed_area": 0.091796875
+      },
+      {
+        "top": 6,
+        "left": 4,
+        "expected_area": 0.0625,
+        "changed_area": 0.0625
+      },
+      {
+        "top": 6,
+        "left": 5,
+        "expected_area": 0.091796875,
+        "changed_area": 0.091796875
+      },
+      {
+        "top": 6,
+        "left": 6,
+        "expected_area": 0.12109375,
+        "changed_area": 0.12109375
+      },
+      {
+        "top": 6,
+        "left": 7,
+        "expected_area": 0.150390625,
+        "changed_area": 0.150390625
+      },
+      {
+        "top": 6,
+        "left": 8,
+        "expected_area": 0.1796875,
+        "changed_area": 0.1796875
+      },
+      {
+        "top": 7,
+        "left": 0,
+        "expected_area": 0.20703125,
+        "changed_area": 0.20703125
+      },
+      {
+        "top": 7,
+        "left": 1,
+        "expected_area": 0.1787109375,
+        "changed_area": 0.1787109375
+      },
+      {
+        "top": 7,
+        "left": 2,
+        "expected_area": 0.150390625,
+        "changed_area": 0.150390625
+      },
+      {
+        "top": 7,
+        "left": 3,
+        "expected_area": 0.1220703125,
+        "changed_area": 0.1220703125
+      },
+      {
+        "top": 7,
+        "left": 4,
+        "expected_area": 0.09375,
+        "changed_area": 0.09375
+      },
+      {
+        "top": 7,
+        "left": 5,
+        "expected_area": 0.1220703125,
+        "changed_area": 0.1220703125
+      },
+      {
+        "top": 7,
+        "left": 6,
+        "expected_area": 0.150390625,
+        "changed_area": 0.150390625
+      },
+      {
+        "top": 7,
+        "left": 7,
+        "expected_area": 0.1787109375,
+        "changed_area": 0.1787109375
+      },
+      {
+        "top": 7,
+        "left": 8,
+        "expected_area": 0.20703125,
+        "changed_area": 0.20703125
+      },
+      {
+        "top": 8,
+        "left": 0,
+        "expected_area": 0.234375,
+        "changed_area": 0.234375
+      },
+      {
+        "top": 8,
+        "left": 1,
+        "expected_area": 0.20703125,
+        "changed_area": 0.20703125
+      },
+      {
+        "top": 8,
+        "left": 2,
+        "expected_area": 0.1796875,
+        "changed_area": 0.1796875
+      },
+      {
+        "top": 8,
+        "left": 3,
+        "expected_area": 0.15234375,
+        "changed_area": 0.15234375
+      },
+      {
+        "top": 8,
+        "left": 4,
+        "expected_area": 0.125,
+        "changed_area": 0.125
+      },
+      {
+        "top": 8,
+        "left": 5,
+        "expected_area": 0.15234375,
+        "changed_area": 0.15234375
+      },
+      {
+        "top": 8,
+        "left": 6,
+        "expected_area": 0.1796875,
+        "changed_area": 0.1796875
+      },
+      {
+        "top": 8,
+        "left": 7,
+        "expected_area": 0.20703125,
+        "changed_area": 0.20703125
+      },
+      {
+        "top": 8,
+        "left": 8,
+        "expected_area": 0.234375,
+        "changed_area": 0.234375
+      }
+    ],
+    "mean_expected_area": 0.13406635802469136,
+    "mean_changed_area": 0.13329475308641975
+  },
+  "corpus": {
+    "indices_sha256": "c2993907dabd691801d1dab6988ebe2d54697c2d41339ce59fbe4a62712038dd",
+    "rng_equal": true,
+    "strong_batches": 32,
+    "strong_hard": 16,
+    "strong_cutmix": 16,
+    "weak_batches": 16,
+    "mean_changed_fraction": 0.2368934419849514,
+    "file_sha256": "df7156774dbe62dd2e0d934eeab9835ef1fbd4c5c34f72db8fc44ca2f30330c6",
+    "control_tensor_sha256": "a96b5da2bf5f155f37cbc511cf3c15304d1dab21dc5935d773f288b613f85b32",
+    "candidate_tensor_sha256": "87ffeafb930fcee1002acff81203b4b87d056701f99d160f26c12bd981a266d9"
+  },
+  "control_calibrations": [
+    {
+      "status": "pass",
+      "maxima": {
+        "logit": 1.232834307451059,
+        "gradient": 1.6809555368645748,
+        "update": 1.2481705485047976,
+        "update_parameter": 0.022124825371563392,
+        "preceding": 0.6626790718312229
+      },
+      "concentration_steps": [],
+      "persistent_concentration": false,
+      "ema_ratios": {
+        "strong": 0.9957263453076335,
+        "weak": 0.9766001869450117
+      },
+      "failures": []
+    },
+    {
+      "status": "pass",
+      "maxima": {
+        "logit": 1.7999906758716824,
+        "gradient": 1.750835660583312,
+        "update": 1.0416277917014118,
+        "update_parameter": 0.022124825369019656,
+        "preceding": 0.6498307680276287
+      },
+      "concentration_steps": [],
+      "persistent_concentration": false,
+      "ema_ratios": {
+        "strong": 0.995308764091173,
+        "weak": 0.9958149983270355
+      },
+      "failures": []
+    }
+  ],
+  "trajectory": {
+    "status": "failed",
+    "maxima": {
+      "logit": 20.7200178854819,
+      "gradient": 9.80565502500489,
+      "update": 2.98018051039155,
+      "update_parameter": 0.04718851423707319,
+      "preceding": 1.363036193613131
+    },
+    "concentration_steps": [],
+    "persistent_concentration": false,
+    "ema_ratios": {
+      "strong": 1.0498933478039076,
+      "weak": 1.0956723611634198
+    },
+    "failures": [
+      "gradient ratio step 11",
+      "logit ratio step 17",
+      "gradient ratio step 17",
+      "logit ratio step 18",
+      "logit ratio step 19",
+      "logit ratio step 20",
+      "logit ratio step 21",
+      "logit ratio step 22",
+      "logit ratio step 23",
+      "logit ratio step 24",
+      "logit ratio step 25",
+      "logit ratio step 26",
+      "logit ratio step 27",
+      "logit ratio step 28",
+      "logit ratio step 29",
+      "logit ratio step 30"
+    ]
+  },
+  "corpus_after": {
+    "file_sha256": "df7156774dbe62dd2e0d934eeab9835ef1fbd4c5c34f72db8fc44ca2f30330c6",
+    "control_tensor_sha256": "a96b5da2bf5f155f37cbc511cf3c15304d1dab21dc5935d773f288b613f85b32",
+    "candidate_tensor_sha256": "87ffeafb930fcee1002acff81203b4b87d056701f99d160f26c12bd981a266d9"
+  },
+  "failures": [
+    "gradient ratio step 11",
+    "logit ratio step 17",
+    "gradient ratio step 17",
+    "logit ratio step 18",
+    "logit ratio step 19",
+    "logit ratio step 20",
+    "logit ratio step 21",
+    "logit ratio step 22",
+    "logit ratio step 23",
+    "logit ratio step 24",
+    "logit ratio step 25",
+    "logit ratio step 26",
+    "logit ratio step 27",
+    "logit ratio step 28",
+    "logit ratio step 29",
+    "logit ratio step 30"
+  ]
+}

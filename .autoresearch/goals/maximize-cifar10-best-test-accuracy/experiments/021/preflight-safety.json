@@ -1,0 +1,125 @@
+{
+  "candidate": {
+    "arm": "candidate",
+    "backend": {
+      "cublas_workspace_config": ":4096:8",
+      "cudnn_allow_tf32": true,
+      "cudnn_benchmark": false,
+      "cudnn_deterministic": false,
+      "deterministic_algorithms": true,
+      "device": "NVIDIA H20",
+      "dtype": "torch.float32",
+      "matmul_allow_tf32": false,
+      "matmul_precision": "highest"
+    },
+    "corpus_sha256": "9b2801ac6d2d07f9bc5a5204e370db815f1b8bfaca8a1b9848a97091703388ea",
+    "hard_batches": 100,
+    "max_gradient_norm": 12.66018009185791,
+    "max_update_norm": 1.7054579257965088,
+    "mixed_batches": 100,
+    "starting_rng_sha256": "81ef85d91eac208bf6da131afb607dc8c4a6fcabd3d244cb12201c7d073626d0",
+    "starting_state_sha256": "2c8e8a2f4842fb39a59b6c524510a2cd32322d2b6c47d227b8864a77b0a7052c",
+    "status": "pass",
+    "terminal_loss_ema": 2.116870457057805,
+    "terminal_rng_sha256": "81ef85d91eac208bf6da131afb607dc8c4a6fcabd3d244cb12201c7d073626d0"
+  },
+  "child_outputs": {
+    "candidate": "/SPXvePFS/users/david/autoresearch-benchmarks/autoresearch-cifar10/runs/v3.0.5-gpt-5-6-sol-adversarial/.autoresearch/goals/maximize-cifar10-best-test-accuracy/experiments/021/preflight-safety-candidate.json",
+    "control": "/SPXvePFS/users/david/autoresearch-benchmarks/autoresearch-cifar10/runs/v3.0.5-gpt-5-6-sol-adversarial/.autoresearch/goals/maximize-cifar10-best-test-accuracy/experiments/021/preflight-safety-control.json"
+  },
+  "concentration_failures": [
+    {
+      "candidate_histogram": [
+        0,
+        0,
+        4,
+        1,
+        0,
+        123,
+        0,
+        0,
+        0,
+        0
+      ],
+      "control_histogram": [
+        0,
+        0,
+        13,
+        0,
+        0,
+        113,
+        0,
+        0,
+        0,
+        2
+      ],
+      "step": 17
+    },
+    {
+      "candidate_histogram": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        128,
+        0,
+        0,
+        0,
+        0
+      ],
+      "control_histogram": [
+        0,
+        0,
+        16,
+        0,
+        0,
+        112,
+        0,
+        0,
+        0,
+        0
+      ],
+      "step": 18
+    }
+  ],
+  "control": {
+    "arm": "control",
+    "backend": {
+      "cublas_workspace_config": ":4096:8",
+      "cudnn_allow_tf32": true,
+      "cudnn_benchmark": false,
+      "cudnn_deterministic": false,
+      "deterministic_algorithms": true,
+      "device": "NVIDIA H20",
+      "dtype": "torch.float32",
+      "matmul_allow_tf32": false,
+      "matmul_precision": "highest"
+    },
+    "corpus_sha256": "9b2801ac6d2d07f9bc5a5204e370db815f1b8bfaca8a1b9848a97091703388ea",
+    "hard_batches": 100,
+    "max_gradient_norm": 14.215155601501465,
+    "max_update_norm": 1.8453956842422485,
+    "mixed_batches": 100,
+    "starting_rng_sha256": "81ef85d91eac208bf6da131afb607dc8c4a6fcabd3d244cb12201c7d073626d0",
+    "starting_state_sha256": "2c8e8a2f4842fb39a59b6c524510a2cd32322d2b6c47d227b8864a77b0a7052c",
+    "status": "pass",
+    "terminal_loss_ema": 2.249781460770954,
+    "terminal_rng_sha256": "81ef85d91eac208bf6da131afb607dc8c4a6fcabd3d244cb12201c7d073626d0"
+  },
+  "gates": {
+    "all_batches": true,
+    "backend": true,
+    "children": true,
+    "concentration": false,
+    "corpus_hash": true,
+    "hard_floor": true,
+    "loss_ema": true,
+    "mixed_floor": true,
+    "starting_rng": true,
+    "starting_state": true,
+    "terminal_rng": true
+  },
+  "status": "fail",
+  "terminal_loss_ema_ratio": 0.9409227047023478
+}

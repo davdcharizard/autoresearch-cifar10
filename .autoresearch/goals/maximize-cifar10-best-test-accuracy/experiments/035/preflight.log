@@ -1,0 +1,19 @@
+/SPXvePFS/users/david/autoresearch-benchmarks/autoresearch-cifar10/runs/v3.0.5-gpt-5-6-sol-adversarial/.autoresearch/goals/maximize-cifar10-best-test-accuracy/experiments/035/preflight_silu.py:208: UserWarning: Converting a tensor with requires_grad=True to a scalar may lead to unexpected behavior.
+Consider using tensor.detach() first. (Triggered internally at /pytorch/torch/csrc/autograd/generated/python_variable_methods.cpp:836.)
+  "zero_value": float(actual[3]),
+{"stage": "semantic", "status": "pass"}
+{"stage": "trajectory", "arm": "control-a", "status": "complete"}
+{"stage": "trajectory", "arm": "control-b", "status": "complete"}
+{"stage": "trajectory", "arm": "control-c", "status": "complete"}
+{"stage": "trajectory", "arm": "control-d", "status": "complete"}
+{"stage": "trajectory", "arm": "candidate", "status": "complete"}
+Traceback (most recent call last):
+  File "/SPXvePFS/users/david/autoresearch-benchmarks/autoresearch-cifar10/runs/v3.0.5-gpt-5-6-sol-adversarial/.autoresearch/goals/maximize-cifar10-best-test-accuracy/experiments/035/preflight_silu.py", line 556, in <module>
+    main()
+    ~~~~^^
+  File "/SPXvePFS/users/david/autoresearch-benchmarks/autoresearch-cifar10/runs/v3.0.5-gpt-5-6-sol-adversarial/.autoresearch/goals/maximize-cifar10-best-test-accuracy/experiments/035/preflight_silu.py", line 552, in main
+    parent()
+    ~~~~~~^^
+  File "/SPXvePFS/users/david/autoresearch-benchmarks/autoresearch-cifar10/runs/v3.0.5-gpt-5-6-sol-adversarial/.autoresearch/goals/maximize-cifar10-best-test-accuracy/experiments/035/preflight_silu.py", line 541, in parent
+    raise RuntimeError("; ".join(failures))
+RuntimeError: tensor relative update at step 1; tensor relative update at step 2; tensor relative update at step 3; tensor relative update at step 4; site gradient ratio at step 9; site gradient ratio at step 10; site gradient ratio at step 13; site gradient ratio at step 16; site gradient ratio at step 17; site gradient ratio at step 20; site gradient ratio at step 22; site gradient ratio at step 24; site gradient ratio at step 38; site gradient ratio at step 40; site gradient ratio at step 44; site gradient ratio at step 45; site gradient ratio at step 47; site gradient ratio at step 49; site gradient ratio at step 50; site gradient ratio at step 54; site gradient ratio at step 57; site gradient ratio at step 58

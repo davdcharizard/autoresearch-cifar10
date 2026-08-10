@@ -1,0 +1,54 @@
+{
+  "status": "pass",
+  "failures": [],
+  "controller_sha256": "077c81512bb815f220241f16babe7d44c999e0785054450a3d4dea76ce9e4481",
+  "train_sha256": "7b3d2f01bbbc6b6a337415c89f2d07bdf4a91aa205d5c1d060acdf59cc96edfb",
+  "corpus_sha256": "e04dc2fe9d3994cef8bf192401bc36c63f306946fd3b9a2339b9f64040318946",
+  "inventory": {
+    "conv": 19,
+    "bn": 19,
+    "linear": 1,
+    "params": 1073962
+  },
+  "state_equal": true,
+  "rng_equal": true,
+  "oracle": {
+    "random": {
+      "output_error": 3.1086244689504383e-15,
+      "feature_grad_error": 6.661338147750939e-16,
+      "weight_grad_error": 4.440892098500626e-16,
+      "finite": true,
+      "max_logit": 6.3006189729328685
+    },
+    "tiny": {
+      "output_error": 4.1359030627651384e-25,
+      "feature_grad_error": 5.684341886080802e-14,
+      "weight_grad_error": 2.842170943040401e-14,
+      "finite": true,
+      "max_logit": 6.702197028039176e-10
+    },
+    "zero": {
+      "output_error": 0.0,
+      "feature_grad_error": 0.0,
+      "weight_grad_error": 0.0,
+      "finite": true,
+      "max_logit": 0.0
+    }
+  },
+  "first_calibration": {
+    "target_rank": 2,
+    "accepted_rms": 2.760023832321167,
+    "unit_cosine_rms": 0.12112423032522202,
+    "derived_scale": 22.78671926261512,
+    "candidate_rms": 2.760047674179077,
+    "accepted_loss": 5.934206008911133,
+    "candidate_loss": 6.014246940612793
+  },
+  "hard_calibration": {
+    "accepted_rms": 2.752232313156128,
+    "candidate_rms": 2.74680233001709,
+    "ratio": 0.9980270622094356
+  },
+  "bias_grad_none": true,
+  "bias_unchanged": true
+}
